@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+.yarn/
+
+# Build outputs
+dist/
+build/
+.turbo/
+out/
+*.tsbuildinfo
+
+# Env files (per-package .env.example is committed)
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.production.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing / coverage
+coverage/
+.nyc_output/
+
+# Caches
+.cache/
+.eslintcache
+.stylelintcache
+
+# Local uploads (file storage stand-in)
+uploads/
+
+# Prisma
+backend/prisma/migrations/dev.db*
+*.db-journal
+
+# Local secrets / keys
+*.pem
+*.key
+secrets/

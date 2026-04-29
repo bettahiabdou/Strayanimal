@@ -1,0 +1,269 @@
+// StrayAnimals — Postgres schema
+// One service, three roles: citizens (no account, anonymous reports),
+// commune agents (triage + assign), field teams (intervene).
+//
+// Migration commands:
+//   pnpm prisma migrate dev    # create migration + apply locally
+//   pnpm prisma generate       # regenerate client after schema changes
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN        // full access incl. settings/users
+  SUPERVISOR   // approve, assign, manage teams
+  AGENT        // triage queue, assign
+  FIELD_TEAM   // intervene; sees only assigned missions
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  PENDING_INVITE
+}
+
+enum ReportCategory {
+  AGGRESSIVE
+  INJURED
+  STRAY
+}
+
+enum AnimalType {
+  DOG
+  CAT
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING        // awaiting agent triage
+  APPROVED       // agent validated, not yet assigned
+  ASSIGNED       // dispatched to a team
+  IN_PROGRESS    // team has marked as en-route or on-site
+  RESOLVED       // captured / handled
+  IMPOSSIBLE     // team unable to capture
+  REJECTED       // agent rejected (duplicate, out-of-scope, spam)
+}
+
+enum ReportSource {
+  WEB_FORM
+  WHATSAPP
+  PHONE
+  AGENT_MANUAL
+}
+
+enum MissionStatus {
+  ASSIGNED
+  EN_ROUTE
+  ON_SITE
+  CAPTURED
+  IMPOSSIBLE
+}
+
+enum MediaPurpose {
+  CITIZEN_REPORT      // photo attached to the original report
+  POST_INTERVENTION   // photo taken by field team after action
+}
+
+enum AuditCategory {
+  AUTH
+  REPORT
+  TEAM
+  SETTINGS
+  USER
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Users / Teams
+// ─────────────────────────────────────────────────────────────────
+
+model User {
+  id              String     @id @default(cuid())
+  email           String     @unique
+  passwordHash    String
+  name            String
+  role            UserRole
+  status          UserStatus @default(ACTIVE)
+  zone            String?    // primary zone of responsibility (free text for now)
+  preferredLocale String     @default("fr") // "fr" or "ar"
+
+  // Field-team membership
+  teamMembership  TeamMember?
+
+  // Authored data
+  triagedReports  Report[]   @relation("TriagedBy")
+  assignedReports Report[]   @relation("AssignedBy")
+  auditEvents     AuditEvent[]
+  refreshTokens   RefreshToken[]
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  lastLoginAt     DateTime?
+
+  @@index([role, status])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  // Useful for forensics
+  ip        String?
+  userAgent String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Team {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  zone      String       // primary intervention zone
+  isActive  Boolean      @default(true)
+  members   TeamMember[]
+  missions  Mission[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model TeamMember {
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  String  @unique
+  team    Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  teamId  String
+  isLead  Boolean @default(false)
+
+  @@id([userId, teamId])
+  @@index([teamId])
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Reports / Missions / Media
+// ─────────────────────────────────────────────────────────────────
+
+model Report {
+  id          String         @id @default(cuid())
+  publicRef   String         @unique // human-readable reference (e.g. OZN-2618-47)
+  source      ReportSource
+  category    ReportCategory
+  animalType  AnimalType
+  animalCount Int            @default(1)
+  isUrgent    Boolean        @default(false)
+  status      ReportStatus   @default(PENDING)
+
+  // Geo (PostGIS later — for now plain decimals)
+  latitude    Float
+  longitude   Float
+  address     String
+  zone        String         // commune sub-zone (free text from form / inferred)
+
+  // Content
+  comment     String         @db.Text
+  rejectReason String?       @db.Text
+
+  // Citizen contact (optional, mostly anonymous)
+  citizenName  String?
+  citizenPhone String?
+  preferredLocale String     @default("fr")
+
+  // Triage
+  triagedBy   User?          @relation("TriagedBy", fields: [triagedById], references: [id], onDelete: SetNull)
+  triagedById String?
+  triagedAt   DateTime?
+
+  // Assignment
+  assignedBy  User?          @relation("AssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  assignedById String?
+  assignedAt  DateTime?
+
+  // Mission (one report → one mission once assigned)
+  mission     Mission?
+
+  // Media
+  media       MediaAsset[]
+
+  receivedAt  DateTime       @default(now())
+  resolvedAt  DateTime?
+  updatedAt   DateTime       @updatedAt
+
+  @@index([status, isUrgent])
+  @@index([receivedAt])
+  @@index([zone])
+}
+
+model Mission {
+  id           String        @id @default(cuid())
+  report       Report        @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reportId     String        @unique
+  team         Team          @relation(fields: [teamId], references: [id])
+  teamId       String
+  status       MissionStatus @default(ASSIGNED)
+  agentNote    String?       @db.Text  // internal note from assigning agent
+  fieldNote    String?       @db.Text  // note from the field team after intervention
+
+  // Stage timestamps
+  assignedAt   DateTime      @default(now())
+  enRouteAt    DateTime?
+  onSiteAt     DateTime?
+  closedAt     DateTime?
+
+  // Lifecycle
+  outcome      MissionStatus? // CAPTURED or IMPOSSIBLE — null while open
+  durationMin  Int?           // computed at close
+
+  updatedAt    DateTime      @updatedAt
+
+  @@index([teamId, status])
+  @@index([status])
+}
+
+model MediaAsset {
+  id          String       @id @default(cuid())
+  report      Report       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reportId    String
+  purpose     MediaPurpose
+  storageKey  String       // R2 object key
+  url         String?      // optional public URL if bucket is public
+  contentType String
+  bytes       Int
+  width       Int?
+  height      Int?
+  uploadedById String?     // user who uploaded; null for anonymous citizen submissions
+  createdAt   DateTime     @default(now())
+
+  @@index([reportId, purpose])
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Audit
+// ─────────────────────────────────────────────────────────────────
+
+model AuditEvent {
+  id        String        @id @default(cuid())
+  category  AuditCategory
+  action    String        // e.g. "report.approve", "team.create"
+  target    String?       // human-readable target (e.g. "OZN-2618-47" or team id)
+  details   Json?
+  user      User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId    String?
+  ip        String?
+  userAgent String?
+  createdAt DateTime      @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([category])
+}

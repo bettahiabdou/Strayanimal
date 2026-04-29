@@ -1,0 +1,617 @@
+{
+  "common": {
+    "appName": "Animaux Errants",
+    "brand": "Service de protection des animaux errants",
+    "kingdom": "Royaume du Maroc",
+    "communeFull": "Groupement des communes territoriales",
+    "communeFullExtended": "Groupement des communes territoriales pour la prévention et la préservation de la santé",
+    "communeShort": "GCT — Ouarzazate",
+    "back": "Retour",
+    "next": "Suivant",
+    "previous": "Précédent",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "submit": "Envoyer",
+    "save": "Enregistrer",
+    "loading": "Chargement…",
+    "error": "Une erreur est survenue",
+    "retry": "Réessayer",
+    "yes": "Oui",
+    "no": "Non"
+  },
+  "dashboard": {
+    "login": {
+      "title": "Espace agent",
+      "subtitle": "Plateforme de gestion des signalements — Ouarzazate",
+      "email": "Adresse e-mail",
+      "emailPlaceholder": "agent@ouarzazate.ma",
+      "password": "Mot de passe",
+      "submit": "Se connecter",
+      "forgot": "Mot de passe oublié ?",
+      "back": "Retour au site public"
+    },
+    "nav": {
+      "overview": "Vue d'ensemble",
+      "triage": "File de triage",
+      "reports": "Signalements",
+      "map": "Carte",
+      "teams": "Équipes",
+      "stats": "Statistiques",
+      "heatmap": "Heatmap",
+      "users": "Utilisateurs",
+      "settings": "Paramètres",
+      "audit": "Journal d'audit",
+      "logout": "Se déconnecter"
+    },
+    "topbar": {
+      "search": "Rechercher un signalement, une zone, une équipe…",
+      "notifications": "Notifications"
+    },
+    "overview": {
+      "title": "Vue d'ensemble",
+      "subtitle": "Activité du service au {{date}}",
+      "kpi": {
+        "pendingTriage": "À trier",
+        "inProgress": "En cours",
+        "resolvedToday": "Traités aujourd'hui",
+        "avgResponse": "Délai moyen"
+      },
+      "triageQueue": "File de triage",
+      "triageQueueAction": "Voir tout",
+      "hotZones": "Zones les plus actives",
+      "recentActivity": "Activité récente"
+    },
+    "users": {
+      "title": "Utilisateurs",
+      "subtitle": "Agents, équipes terrain et administrateurs ayant accès à la plateforme",
+      "newUser": "Nouvel utilisateur",
+      "search": "Rechercher par nom, e-mail, rôle…",
+      "kpi": {
+        "total": "Comptes",
+        "active": "Actifs",
+        "agents": "Agents",
+        "fieldTeam": "Terrain"
+      },
+      "filters": {
+        "all": "Tous",
+        "admin": "Admin",
+        "agent": "Agent",
+        "supervisor": "Superviseur",
+        "fieldTeam": "Terrain"
+      },
+      "columns": {
+        "user": "Utilisateur",
+        "role": "Rôle",
+        "zone": "Zone",
+        "status": "Statut",
+        "lastLogin": "Dernière connexion",
+        "actions": "Actions"
+      },
+      "role": {
+        "admin": "Administrateur",
+        "agent": "Agent",
+        "supervisor": "Superviseur",
+        "fieldTeam": "Équipe terrain"
+      },
+      "status": {
+        "active": "Actif",
+        "inactive": "Inactif",
+        "pending": "En attente"
+      },
+      "noResults": "Aucun utilisateur ne correspond aux filtres."
+    },
+    "settings": {
+      "title": "Paramètres",
+      "subtitle": "Configuration de la plateforme et des règles métier",
+      "saveAll": "Enregistrer",
+      "saved": "Modifications enregistrées",
+      "general": {
+        "title": "Informations générales",
+        "subtitle": "Identité de la commune et coordonnées du service",
+        "communeName": "Nom de la commune",
+        "serviceTitle": "Intitulé du service",
+        "publicHotline": "Numéro vert public",
+        "internalHotline": "Numéro interne",
+        "publicEmail": "E-mail public",
+        "address": "Adresse postale",
+        "openingHours": "Horaires du service"
+      },
+      "notifications": {
+        "title": "Notifications",
+        "subtitle": "Quand les agents et équipes sont alertés",
+        "newReportEmail": "Notifier les agents par e-mail à chaque nouveau signalement",
+        "urgentSms": "Envoyer un SMS aux superviseurs pour les signalements urgents",
+        "teamPushEnabled": "Notifications push aux équipes terrain à l'assignation",
+        "dailyDigest": "Résumé quotidien envoyé aux agents à 18h00",
+        "citizenSmsConfirm": "SMS de confirmation aux citoyens à l'envoi"
+      },
+      "retention": {
+        "title": "Conservation des données",
+        "subtitle": "Durée de rétention conforme au cadre légal",
+        "reportRetention": "Durée de conservation des signalements",
+        "photoRetention": "Durée de conservation des photos",
+        "auditRetention": "Durée de conservation du journal d'audit",
+        "anonymize": "Anonymiser les données du citoyen après clôture"
+      },
+      "integrations": {
+        "title": "Intégrations",
+        "subtitle": "Services externes connectés à la plateforme",
+        "mapbox": "Mapbox (carte)",
+        "twilio": "Twilio (SMS / WhatsApp)",
+        "fcm": "Firebase Cloud Messaging (push)",
+        "configure": "Configurer",
+        "connected": "Connecté",
+        "notConnected": "Non connecté"
+      },
+      "danger": {
+        "title": "Zone sensible",
+        "subtitle": "Actions irréversibles, accès limité aux administrateurs",
+        "exportAll": "Exporter toutes les données",
+        "purge": "Purger les signalements rejetés"
+      },
+      "duration": {
+        "month3": "3 mois",
+        "month6": "6 mois",
+        "year1": "1 an",
+        "year2": "2 ans",
+        "year5": "5 ans"
+      }
+    },
+    "audit": {
+      "title": "Journal d'audit",
+      "subtitle": "Trace de toutes les actions effectuées sur la plateforme",
+      "search": "Rechercher par utilisateur, action, cible…",
+      "export": "Exporter (CSV)",
+      "filters": {
+        "all": "Toutes",
+        "auth": "Authentification",
+        "report": "Signalement",
+        "team": "Équipe",
+        "settings": "Paramètres",
+        "user": "Utilisateurs"
+      },
+      "columns": {
+        "time": "Heure",
+        "user": "Utilisateur",
+        "action": "Action",
+        "target": "Cible",
+        "ip": "Adresse IP",
+        "agent": "Appareil"
+      },
+      "today": "Aujourd'hui",
+      "yesterday": "Hier",
+      "showing": "{{count}} entrées sur la période"
+    },
+    "heatmap": {
+      "title": "Heatmap",
+      "subtitle": "Densité géographique des signalements sur la période sélectionnée",
+      "range": {
+        "today": "Aujourd'hui",
+        "week": "7 jours",
+        "month": "30 jours",
+        "quarter": "Trimestre",
+        "year": "Année"
+      },
+      "totalReports": "{{count}} signalements pris en compte",
+      "category": {
+        "all": "Toutes catégories",
+        "aggressive": "Agressif",
+        "injured": "Blessé",
+        "stray": "Errant"
+      },
+      "topZones": "Zones critiques",
+      "topZonesSubtitle": "Classement par densité de signalements",
+      "intensity": "Intensité",
+      "low": "Faible",
+      "medium": "Moyenne",
+      "high": "Élevée",
+      "critical": "Critique",
+      "noShow": "Aucune zone critique sur la période."
+    },
+    "stats": {
+      "title": "Statistiques",
+      "subtitle": "Performance du service sur la période sélectionnée",
+      "range": {
+        "week": "7 jours",
+        "month": "30 jours",
+        "quarter": "Trimestre",
+        "year": "Année"
+      },
+      "export": "Exporter le rapport (PDF)",
+      "kpi": {
+        "totalReports": "Signalements reçus",
+        "resolved": "Taux de résolution",
+        "avgResponse": "Délai moyen",
+        "rejected": "Rejetés (doublons / hors-zone)",
+        "vsPrevious": "vs période précédente"
+      },
+      "volumeTitle": "Volume des signalements",
+      "volumeSubtitle": "Reçus chaque jour sur la période",
+      "responseTimeTitle": "Délai d'intervention",
+      "responseTimeSubtitle": "Médiane par jour (en minutes)",
+      "categoryTitle": "Répartition par type",
+      "zoneTitle": "Répartition par quartier",
+      "teamTitle": "Performance des équipes",
+      "team": {
+        "name": "Équipe",
+        "missions": "Missions",
+        "resolved": "Résolues",
+        "rate": "Taux",
+        "avgResponse": "Délai moyen"
+      },
+      "peakDay": "Jour le plus actif",
+      "of": "de"
+    },
+    "teams": {
+      "title": "Équipes terrain",
+      "subtitle": "État, charge et activité des équipes mobilisées sur le terrain",
+      "newTeam": "Nouvelle équipe",
+      "kpi": {
+        "total": "Équipes",
+        "available": "Disponibles",
+        "onMission": "En mission",
+        "off": "Hors service"
+      },
+      "status": {
+        "available": "Disponible",
+        "enRoute": "En route",
+        "onSite": "Sur place",
+        "off": "Hors service"
+      },
+      "filterAll": "Toutes",
+      "card": {
+        "members": "Membres",
+        "missionsToday": "Missions aujourd'hui",
+        "resolved": "Résolues",
+        "avgResponse": "Délai moyen",
+        "weekMissions": "Cette semaine",
+        "currentMission": "Mission en cours",
+        "viewDetail": "Voir le détail",
+        "edit": "Modifier",
+        "noTeams": "Aucune équipe ne correspond aux filtres."
+      }
+    },
+    "map": {
+      "title": "Carte en direct",
+      "subtitle": "Position en temps réel des signalements approuvés",
+      "filterAll": "Tous",
+      "filterUrgent": "Urgents",
+      "filterInProgress": "En cours",
+      "filterResolved": "Traités",
+      "lastRefresh": "Dernière mise à jour",
+      "now": "à l'instant",
+      "legend": "Légende",
+      "visiblePins": "{{count}} sur la carte",
+      "centerOn": "Recentrer sur Ouarzazate",
+      "zoomIn": "Zoom avant",
+      "zoomOut": "Zoom arrière",
+      "layers": "Couches",
+      "viewOSM": "Voir sur OpenStreetMap"
+    },
+    "reports": {
+      "title": "Signalements",
+      "subtitle": "Tous les signalements reçus, validés ou clôturés",
+      "search": "Rechercher par ID, adresse, équipe…",
+      "export": "Exporter (CSV)",
+      "newReport": "Nouveau signalement",
+      "filterStatus": "Statut",
+      "filterAll": "Tous",
+      "columns": {
+        "photo": "Photo",
+        "id": "Réf.",
+        "category": "Type",
+        "location": "Localisation",
+        "status": "Statut",
+        "agent": "Agent",
+        "team": "Équipe",
+        "received": "Reçu",
+        "actions": "Actions"
+      },
+      "showing": "{{from}}–{{to}} sur {{total}}",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "noResults": "Aucun signalement ne correspond aux filtres."
+    },
+    "detail": {
+      "close": "Fermer",
+      "reference": "Référence",
+      "received": "Reçu le",
+      "category": "Type de situation",
+      "animals": "Nombre d'animaux",
+      "location": "Localisation",
+      "zone": "Quartier",
+      "address": "Adresse",
+      "citizenComment": "Commentaire du citoyen",
+      "reporter": "Signalé par",
+      "anonymous": "Anonyme",
+      "phone": "Téléphone",
+      "timeline": "Historique",
+      "actions": "Actions",
+      "approve": "Valider le signalement",
+      "reject": "Rejeter",
+      "assignTeam": "Assigner à une équipe",
+      "changeStatus": "Changer le statut",
+      "viewOnMap": "Voir sur la carte",
+      "addNote": "Ajouter une note",
+      "noteSection": "Notes internes",
+      "noNotes": "Aucune note interne pour le moment.",
+      "events": {
+        "received": "Signalement reçu du citoyen",
+        "approved": "Validé par {{agent}}",
+        "assigned": "Assigné à {{team}}",
+        "inProgress": "Marqué en cours par {{team}}",
+        "resolved": "Clôturé — capture réussie",
+        "rejected": "Rejeté par {{agent}}"
+      }
+    },
+    "triage": {
+      "title": "File de triage",
+      "subtitle": "Signalements citoyens en attente de validation",
+      "filters": {
+        "all": "Tous",
+        "urgent": "Urgent",
+        "today": "Aujourd'hui"
+      },
+      "card": {
+        "received": "Reçu",
+        "approve": "Valider",
+        "reject": "Rejeter",
+        "viewDetail": "Voir le détail"
+      },
+      "empty": "Aucun signalement en attente — bon travail."
+    },
+    "status": {
+      "pending": "En attente",
+      "approved": "Validé",
+      "assigned": "Assigné",
+      "inProgress": "En cours",
+      "resolved": "Traité",
+      "rejected": "Rejeté",
+      "impossible": "Impossible"
+    },
+    "category": {
+      "aggressive": "Agressif",
+      "injured": "Blessé",
+      "stray": "Errant"
+    }
+  },
+  "fieldTeam": {
+    "login": {
+      "title": "Équipe terrain",
+      "subtitle": "Connectez-vous pour recevoir vos missions",
+      "email": "E-mail",
+      "password": "Code agent",
+      "submit": "Se connecter",
+      "back": "Retour à l'aperçu",
+      "team": "Équipe"
+    },
+    "shell": {
+      "online": "En ligne",
+      "offline": "Hors ligne",
+      "agentLabel": "Agent",
+      "teamLabel": "Équipe"
+    },
+    "tabs": {
+      "inbox": "Missions",
+      "history": "Aujourd'hui",
+      "profile": "Profil"
+    },
+    "inbox": {
+      "title": "Missions assignées",
+      "filterAll": "Tout",
+      "filterUrgent": "Urgentes",
+      "filterEnRoute": "En cours",
+      "empty": "Aucune mission en attente",
+      "emptySubtitle": "Toutes vos missions sont terminées. Bon travail !",
+      "newCount": "{{count}} nouvelle(s)",
+      "received": "Reçue {{when}}"
+    },
+    "mission": {
+      "priority": "Priorité",
+      "urgent": "Urgente",
+      "normal": "Normale",
+      "address": "Adresse",
+      "zone": "Quartier",
+      "distance": "Distance",
+      "estimated": "ETA",
+      "agent": "Agent assignant",
+      "agentNote": "Note de l'agent",
+      "noNote": "Aucune note de l'agent.",
+      "citizenComment": "Commentaire du citoyen",
+      "navigate": "Démarrer la navigation",
+      "photo": "Photo du citoyen",
+      "category": "Type de situation",
+      "animals": "Nombre",
+      "received": "Reçue le {{date}}",
+      "back": "Retour aux missions"
+    },
+    "actions": {
+      "depart": "Je pars",
+      "onSite": "Je suis sur place",
+      "captured": "Capturé",
+      "impossible": "Impossible",
+      "addPhoto": "Photo de l'intervention",
+      "addPhotoSubtitle": "Requise pour clôturer la mission",
+      "addNote": "Note (optionnelle)",
+      "notePlaceholder": "Précisions sur l'intervention…",
+      "submit": "Clôturer la mission",
+      "submitImpossible": "Marquer comme impossible",
+      "back": "Retour"
+    },
+    "status": {
+      "assigned": "Assignée",
+      "enRoute": "En route",
+      "onSite": "Sur place",
+      "captured": "Capturé",
+      "impossible": "Impossible",
+      "completed": "Terminée"
+    },
+    "history": {
+      "title": "Aujourd'hui",
+      "subtitle": "Missions terminées par votre équipe",
+      "stats": {
+        "completed": "Terminées",
+        "captured": "Capturées",
+        "impossible": "Impossibles",
+        "avgTime": "Durée moyenne"
+      },
+      "empty": "Aucune mission terminée aujourd'hui."
+    },
+    "profile": {
+      "title": "Profil",
+      "team": "Équipe",
+      "role": "Rôle",
+      "fieldAgent": "Agent terrain",
+      "leadAgent": "Chef d'équipe",
+      "zone": "Zone d'intervention",
+      "preferences": "Préférences",
+      "language": "Langue",
+      "notifications": "Notifications push",
+      "logout": "Se déconnecter",
+      "version": "Version 0.1 — aperçu design"
+    },
+    "complete": {
+      "title": "Mission clôturée",
+      "subtitle": "Merci. Le citoyen sera informé.",
+      "back": "Voir les missions"
+    }
+  },
+  "preview": {
+    "title": "Service de protection des animaux errants — Aperçu Design",
+    "subtitle": "Prototype des trois interfaces : citoyen, commune, équipe terrain",
+    "chooseApp": "Choisissez une interface à prévisualiser",
+    "backToHub": "Retour à l'aperçu",
+    "previewLink": "Aperçu",
+    "citizen": {
+      "title": "Site Citoyen",
+      "description": "Site public bilingue — informer, signaler, contacter"
+    },
+    "dashboard": {
+      "title": "Tableau de Bord Commune",
+      "description": "ERP pour le triage, l'assignation et l'analyse des signalements"
+    },
+    "fieldTeam": {
+      "title": "Application Équipe Terrain",
+      "description": "Réception des missions approuvées et mise à jour des statuts"
+    }
+  },
+  "citizen": {
+    "topbar": {
+      "hotline": "Numéro vert",
+      "email": "info@animaux-ouarzazate.ma",
+      "help": "aide@animaux-ouarzazate.ma"
+    },
+    "nav": {
+      "home": "Accueil",
+      "report": "Signaler",
+      "form": "Formulaire",
+      "reportNow": "Signaler maintenant"
+    },
+    "hero": {
+      "kicker": "Communiqué du service",
+      "title": "Pour la protection des animaux et la sécurité des habitants de Ouarzazate",
+      "subtitle": "Un service du Groupement des communes territoriales pour signaler tout animal errant — agressif, blessé ou seul — afin qu'une équipe communale intervienne dans les meilleurs délais.",
+      "primaryCta": "Signaler en ligne",
+      "secondaryCta": "Comment ça fonctionne",
+      "hotlineLabel": "Numéro vert · 24h/24",
+      "hotlineSub": "Appel gratuit depuis tout le territoire de la commune"
+    },
+    "process": {
+      "kicker": "Article I — Procédure",
+      "title": "Comment ça fonctionne",
+      "subtitle": "Quatre étapes claires, du signalement à la prise en charge.",
+      "step1": {
+        "title": "Vous signalez",
+        "desc": "Par formulaire en ligne, WhatsApp ou téléphone. Photo et localisation suffisent."
+      },
+      "step2": {
+        "title": "Validation par un agent",
+        "desc": "Un agent de la commune vérifie le signalement et évalue le degré d'urgence."
+      },
+      "step3": {
+        "title": "Mission équipe terrain",
+        "desc": "L'équipe la plus proche reçoit la mission et se rend sur place dans les plus brefs délais."
+      },
+      "step4": {
+        "title": "Animal pris en charge",
+        "desc": "Soins, mise en sécurité ou capture selon la situation. Vous êtes informé du suivi."
+      }
+    },
+    "about": {
+      "kicker": "À propos du service",
+      "title": "Un service public pour la protection des animaux et des habitants",
+      "p1": "Le Service de protection des animaux errants est une initiative du Groupement des communes territoriales de Ouarzazate. Il intervient sur l'ensemble du territoire de la commune pour répondre aux signalements de chiens et chats errants — agressifs, blessés ou en situation de détresse.",
+      "p2": "Chaque signalement reçu est validé par un agent de la commune, classé selon son degré d'urgence, puis confié à l'équipe terrain la plus proche. Les animaux capturés sont pris en charge dans des conditions conformes à la réglementation en vigueur.",
+      "p3": "Le service est gratuit, anonyme et accessible à tout résident de la commune. Aucune information personnelle n'est requise pour signaler ; un numéro de téléphone n'est demandé que si vous souhaitez être informé de la suite donnée à votre signalement."
+    },
+    "attention": {
+      "title": "ATTENTION !",
+      "p1": "Si vous voyez un animal errant dans votre quartier et que vous avez besoin d'aide, veuillez **appeler le numéro vert {{hotline}} et remplir le formulaire de signalement** présent sur cette page. Vous pouvez également partager la localisation et les détails via WhatsApp.",
+      "p2": "Votre signalement aide notre équipe à intervenir rapidement et de manière responsable, afin que l'animal reçoive les soins, l'évaluation et l'accompagnement nécessaires. Veuillez préciser le lieu, une description brève de l'animal, et toute préoccupation immédiate.",
+      "p3": "**Chaque signalement compte** — votre action en temps utile peut faire une véritable différence pour la protection des animaux errants et la sécurité de la communauté.",
+      "ctaWhatsapp": "WhatsApp",
+      "ctaCall": "Appeler maintenant"
+    },
+    "form": {
+      "title": "Formulaire de signalement",
+      "subtitle": "Formulaire de signalement et de prise en charge des animaux errants",
+      "stepLabel": "Étape {{current}} sur {{total}}",
+      "step1": "Informations sur l'animal",
+      "step2": "Localisation et contact",
+      "fields": {
+        "category": "Type de situation",
+        "categoryAggressive": "Agressif",
+        "categoryInjured": "Blessé",
+        "categoryStray": "Errant simple",
+        "animalType": "Type d'animal",
+        "animalDog": "Chien",
+        "animalCat": "Chat",
+        "animalOther": "Autre",
+        "animalCount": "Nombre approximatif d'animaux",
+        "availableTime": "Période où l'animal est visible",
+        "timeMorning": "Matin",
+        "timeAfternoon": "Après-midi",
+        "timeEvening": "Soir",
+        "timeNight": "Nuit",
+        "environment": "Type de lieu",
+        "envResidential": "Zone résidentielle",
+        "envCommercial": "Zone commerciale",
+        "envPublic": "Espace public",
+        "envRoad": "Bord de route",
+        "description": "Description de la situation",
+        "descriptionPlaceholder": "Décrivez l'état de l'animal, son comportement, l'environnement…",
+        "photo": "Photo de l'animal",
+        "photoHint": "Optionnel — la photo aide à identifier la situation",
+        "photoUpload": "Cliquez pour ajouter une photo",
+        "address": "Adresse / Quartier",
+        "addressPlaceholder": "Ex. Hay Al Wahda, près de la mosquée",
+        "contactName": "Nom (optionnel)",
+        "contactPhone": "Téléphone (optionnel)",
+        "contactPhoneHint": "Pour vous tenir informé du suivi"
+      },
+      "submit": "Envoyer le signalement",
+      "next": "Continuer",
+      "back": "Précédent"
+    },
+    "success": {
+      "title": "Signalement bien reçu",
+      "subtitle": "Notre équipe a été alertée. Une intervention sera planifiée selon le degré d'urgence.",
+      "reference": "Référence du signalement",
+      "newReport": "Nouveau signalement"
+    },
+    "footer": {
+      "tagline": "Une initiative du Groupement des communes territoriales pour la protection des animaux errants et la sécurité publique.",
+      "addressTitle": "Adresse",
+      "address": "Avenue Mohammed V\nOuarzazate 45000\nMaroc",
+      "contactTitle": "Contact",
+      "openingHoursTitle": "Horaires du service",
+      "openingHours": "Lundi – Vendredi : 08h30 – 17h00\nWeek-end : urgences uniquement",
+      "linksTitle": "Liens utiles",
+      "about": "À propos",
+      "privacy": "Politique de confidentialité",
+      "terms": "Conditions d'utilisation",
+      "contactPage": "Contact",
+      "copyright": "© {{year}} Groupement des communes territoriales — Ouarzazate. Tous droits réservés."
+    }
+  }
+}

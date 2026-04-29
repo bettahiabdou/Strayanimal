@@ -1,0 +1,12 @@
+{
+  "errors.invalidEmail": "عنوان بريد إلكتروني غير صحيح.",
+  "errors.invalidPhone": "رقم هاتف غير صحيح.",
+  "errors.required": "هذا الحقل إلزامي.",
+  "errors.tooLong": "النص طويل جدًا.",
+  "errors.unauthorized": "المصادقة مطلوبة.",
+  "errors.forbidden": "تم رفض الوصول.",
+  "errors.notFound": "العنصر غير موجود.",
+  "errors.serverError": "حدث خطأ. أعد المحاولة لاحقًا.",
+  "report.received": "تم استلام البلاغ.",
+  "report.refSubject": "تأكيد بلاغك"
+}

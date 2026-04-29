@@ -1,0 +1,43 @@
+{
+  "name": "strayanimals",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Plateforme de protection des animaux errants — Groupement des communes territoriales — Ouarzazate",
+  "type": "module",
+  "workspaces": [
+    "backend",
+    "design",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev:backend": "npm run dev -w strayanimals-backend",
+    "dev:design": "npm run dev -w design",
+    "dev:db": "docker compose up -d postgres",
+    "dev:db:stop": "docker compose stop postgres",
+    "dev:db:reset": "docker compose down -v && docker compose up -d postgres",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css}\" --ignore-path .gitignore",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css}\" --ignore-path .gitignore",
+    "prisma:generate": "npm run prisma:generate -w strayanimals-backend",
+    "prisma:migrate": "npm run prisma:migrate -w strayanimals-backend",
+    "prisma:studio": "npm run prisma:studio -w strayanimals-backend",
+    "db:seed": "npm run db:seed -w strayanimals-backend"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^15.0.0",
+    "prettier": "^3.3.0",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.0.0"
+  },
+  "optionalDependencies": {
+    "@esbuild/darwin-arm64": "^0.27.7"
+  }
+}

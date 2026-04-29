@@ -1,0 +1,12 @@
+{
+  "errors.invalidEmail": "Adresse e-mail invalide.",
+  "errors.invalidPhone": "Numéro de téléphone invalide.",
+  "errors.required": "Ce champ est obligatoire.",
+  "errors.tooLong": "Texte trop long.",
+  "errors.unauthorized": "Authentification requise.",
+  "errors.forbidden": "Accès refusé.",
+  "errors.notFound": "Élément introuvable.",
+  "errors.serverError": "Une erreur est survenue. Réessayez plus tard.",
+  "report.received": "Signalement bien reçu.",
+  "report.refSubject": "Confirmation de votre signalement"
+}
