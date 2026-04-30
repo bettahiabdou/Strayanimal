@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight, AlertCircle, Loader2 } from 'lucide-react'
 import { CommuneLogo } from '@/design-system/CommuneLogo'
@@ -20,10 +20,15 @@ export function Login() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // If already logged in, jump straight to the dashboard.
+  // If already logged in, jump straight to the right app. FIELD_TEAM users
+  // who somehow landed here get bounced to /field-team (symmetric with the
+  // field-team Login that bounces dashboard users to /dashboard).
   if (user) {
+    if (user.role === 'FIELD_TEAM') return <Navigate to="/field-team" replace />
     const target = (location.state as { from?: { pathname: string } } | null)?.from?.pathname
-    return <RedirectTo to={target && target.startsWith('/dashboard') ? target : '/dashboard'} />
+    return (
+      <Navigate to={target && target.startsWith('/dashboard') ? target : '/dashboard'} replace />
+    )
   }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -169,11 +174,4 @@ export function Login() {
       </div>
     </div>
   )
-}
-
-/* Tiny helper because <Navigate replace> needs to be returned, not awaited */
-function RedirectTo({ to }: { to: string }) {
-  const navigate = useNavigate()
-  navigate(to, { replace: true })
-  return null
 }

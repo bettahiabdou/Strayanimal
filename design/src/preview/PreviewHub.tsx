@@ -4,10 +4,14 @@ import { ArrowRight, Smartphone, Monitor, Truck } from 'lucide-react'
 import { LanguageSwitcher } from '@/design-system/LanguageSwitcher'
 import { CommuneLogo } from '@/design-system/CommuneLogo'
 
+// Link to the apps' root routes — RequireAuth will route the user to
+// /login automatically when they're not signed in. If we hard-coded
+// /dashboard/login here, an already-signed-in user would land on a login
+// page that redirects again, which races render order and can flash blank.
 const cards = [
   { to: '/citizen', icon: Smartphone, key: 'citizen' },
-  { to: '/dashboard/login', icon: Monitor, key: 'dashboard' },
-  { to: '/field-team/login', icon: Truck, key: 'fieldTeam' },
+  { to: '/dashboard', icon: Monitor, key: 'dashboard' },
+  { to: '/field-team', icon: Truck, key: 'fieldTeam' },
 ]
 
 export function PreviewHub() {
