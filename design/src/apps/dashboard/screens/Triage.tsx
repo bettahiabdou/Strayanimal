@@ -284,7 +284,11 @@ function TriageCard({
   return (
     <article
       className={cn(
-        'bg-white border rounded-md overflow-hidden flex',
+        // `min-w-0` is critical: without it the grid column auto-grows to fit
+        // the widest child (long select option, long button label), distorting
+        // all sibling cards. With it, the column stays at 1fr and the inner
+        // content is forced to wrap / truncate.
+        'bg-white border rounded-md overflow-hidden flex min-w-0',
         report.isUrgent ? 'border-red-200 ring-1 ring-red-100' : 'border-gray-200',
       )}
     >
@@ -483,12 +487,12 @@ function TriageCard({
 
         {/* Default action row */}
         {formMode === 'idle' && (
-          <div className="mt-auto pt-3 flex items-center justify-between gap-2">
-            <span className="text-[11px] text-gray-500 inline-flex items-center gap-1 truncate">
-              <User className="size-3" />
-              {report.reporter.name ?? 'Anonyme'}
+          <div className="mt-auto pt-3 space-y-2">
+            <span className="text-[11px] text-gray-500 inline-flex items-center gap-1 truncate max-w-full">
+              <User className="size-3 shrink-0" />
+              <span className="truncate">{report.reporter.name ?? 'Anonyme'}</span>
             </span>
-            <div className="flex gap-1.5">
+            <div className="flex flex-wrap gap-1.5 justify-end">
               <button
                 onClick={onOpen}
                 className="btn-square btn-square-outline h-8 px-2.5 text-xs"
