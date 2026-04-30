@@ -41,9 +41,7 @@ export function Login() {
     try {
       const u = await login(email.trim(), password)
       if (u.role !== 'FIELD_TEAM') {
-        setError(
-          "Ce compte n'appartient pas à une équipe terrain. Utilisez le tableau de bord à la place.",
-        )
+        setError(t('fieldTeam.login.errors.wrongRole'))
         setSubmitting(false)
         return
       }
@@ -52,7 +50,7 @@ export function Login() {
         replace: true,
       })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Connexion impossible. Réessayez.')
+      setError(err instanceof ApiError ? err.message : t('fieldTeam.login.errors.network'))
     } finally {
       setSubmitting(false)
     }
@@ -65,7 +63,7 @@ export function Login() {
         className="fixed bottom-4 start-4 z-50 inline-flex items-center gap-1.5 rounded-full bg-white border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 shadow hover:bg-gray-50"
       >
         <Back className="size-3.5" />
-        Aperçu design
+        {t('common.actions.previewHub')}
       </Link>
 
       <div className="w-full max-w-[420px] aspect-[420/900] bg-black rounded-[3rem] p-2.5 shadow-2xl">
@@ -143,7 +141,7 @@ export function Login() {
                   {t('fieldTeam.login.submit')}
                 </button>
                 <p className="mt-4 text-[11px] text-gray-500 text-center">
-                  Plateforme · GCT Ouarzazate
+                  {t('fieldTeam.login.platformLine')}
                 </p>
               </div>
             </form>

@@ -117,7 +117,7 @@ export function Carte() {
       setReports(adaptReports(r.reports))
       setLastFetched(new Date())
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Connexion impossible.')
+      setError(e instanceof ApiError ? e.message : t('dashboard.map.errors.loadFailed'))
     } finally {
       setRefreshing(false)
     }
@@ -150,7 +150,7 @@ export function Carte() {
     if (!d) return '—'
     const diff = Math.round((Date.now() - d.getTime()) / 1000)
     if (diff < 30) return t('dashboard.map.now')
-    if (diff < 120) return `il y a ${diff}s`
+    if (diff < 120) return t('common.timeAgo.seconds', { count: diff })
     return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
   }
 
@@ -179,7 +179,7 @@ export function Carte() {
               onClick={load}
               disabled={refreshing}
               className="size-8 rounded-md hover:bg-gray-100 grid place-items-center text-gray-500 disabled:opacity-50"
-              aria-label="Refresh"
+              aria-label={t('common.actions.refresh')}
             >
               <RefreshCcw className={cn('size-4', refreshing && 'animate-spin')} />
             </button>
@@ -300,11 +300,11 @@ export function Carte() {
               <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
                 {t('dashboard.map.legend')}
               </span>
-              <LegendItem color="bg-red-600" label="Agressif" />
-              <LegendItem color="bg-orange-500" label="Blessé" />
-              <LegendItem color="bg-yellow-500" label="Errant" />
+              <LegendItem color="bg-red-600" label={t('dashboard.category.aggressive')} />
+              <LegendItem color="bg-orange-500" label={t('dashboard.category.injured')} />
+              <LegendItem color="bg-yellow-500" label={t('dashboard.category.stray')} />
               <span className="ms-auto text-[11px] text-gray-500 font-mono">
-                {visible.length} pins
+                {t('dashboard.map.pinsCount', { count: visible.length })}
               </span>
             </div>
           </div>
@@ -313,14 +313,14 @@ export function Carte() {
           <aside className="lg:col-span-4 bg-white border border-gray-200 rounded-md flex flex-col overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-200">
               <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
-                Sur la carte
+                {t('dashboard.map.onMap')}
               </p>
               <p className="font-mono text-2xl font-bold text-gray-900 mt-0.5">{visible.length}</p>
             </div>
             <ul className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
               {visible.length === 0 && reports !== null && (
                 <li className="px-4 py-8 text-center text-sm text-gray-500">
-                  Aucun pin pour ces filtres.
+                  {t('dashboard.map.empty')}
                 </li>
               )}
               {visible.map((r) => {
@@ -359,7 +359,7 @@ export function Carte() {
                         <span className="font-mono text-[10px] text-gray-500">{r.id}</span>
                         {r.isUrgent && (
                           <span className="text-[9px] font-bold uppercase text-red-600">
-                            ● Urgent
+                            {t('dashboard.map.urgentBadge')}
                           </span>
                         )}
                       </div>

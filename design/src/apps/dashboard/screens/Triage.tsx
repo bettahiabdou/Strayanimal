@@ -24,13 +24,16 @@ const CATEGORY_TONE: Record<ReportCategory, string> = {
   stray: 'bg-yellow-100 text-yellow-700 border-yellow-200',
 }
 
-function timeAgo(iso: string) {
-  const diffMin = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
-  if (diffMin < 1) return "à l'instant"
-  if (diffMin < 60) return `il y a ${diffMin} min`
-  const h = Math.floor(diffMin / 60)
-  if (h < 24) return `il y a ${h} h`
-  return `il y a ${Math.floor(h / 24)} j`
+function useTimeAgo() {
+  const { t } = useTranslation()
+  return (iso: string) => {
+    const diffMin = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
+    if (diffMin < 1) return t('common.timeAgo.justNow')
+    if (diffMin < 60) return t('common.timeAgo.minutes', { count: diffMin })
+    const h = Math.floor(diffMin / 60)
+    if (h < 24) return t('common.timeAgo.hours', { count: h })
+    return t('common.timeAgo.days', { count: Math.floor(h / 24) })
+  }
 }
 
 type Filter = 'all' | 'urgent' | 'today'
@@ -51,7 +54,7 @@ export function Triage() {
       const r = await api.listReports({ status: 'PENDING', pageSize: 100 })
       setReports(adaptReports(r.reports))
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Connexion impossible.')
+      setError(e instanceof ApiError ? e.message : t('common.errors.network'))
     } finally {
       setRefreshing(false)
     }
@@ -96,18 +99,18 @@ export function Triage() {
             {t('dashboard.triage.title')}
           </h1>
           <p className="mt-1.5 text-sm text-gray-600">
-            {t('dashboard.triage.subtitle')} — <span className="font-mono">{visible.length}</span>{' '}
-            en file
+            {t('dashboard.triage.subtitle')} —{' '}
+            {t('dashboard.triage.card.queueCount', { count: visible.length })}
           </p>
         </div>
         <button
           onClick={load}
           disabled={refreshing}
           className="btn-square btn-square-outline"
-          aria-label="Rafraîchir"
+          aria-label={t('common.actions.refresh')}
         >
           <RefreshCcw className={cn('size-4', refreshing && 'animate-spin')} />
-          Rafraîchir
+          {t('common.actions.refresh')}
         </button>
       </div>
 
@@ -197,6 +200,7 @@ function TriageCard({
   onOpen: () => void
 }) {
   const { t } = useTranslation()
+  const timeAgo = useTimeAgo()
   const [state, setState] = useState<CardState>({ kind: 'idle' })
   const [reason, setReason] = useState('')
   const [teamId, setTeamId] = useState('')
@@ -207,7 +211,7 @@ function TriageCard({
     if (!reason.trim()) {
       setState({
         kind: 'error',
-        message: 'Veuillez préciser le motif de rejet.',
+        message: t('dashboard.triage.errors.rejectReasonRequired'),
         previous: 'rejecting',
       })
       return
@@ -219,7 +223,7 @@ function TriageCard({
     } catch (e) {
       setState({
         kind: 'error',
-        message: e instanceof ApiError ? e.message : 'Échec du rejet.',
+        message: e instanceof ApiError ? e.message : t('dashboard.triage.errors.rejectFailed'),
         previous: 'rejecting',
       })
     }
@@ -234,7 +238,7 @@ function TriageCard({
     } catch (e) {
       setState({
         kind: 'error',
-        message: e instanceof ApiError ? e.message : 'Échec de la validation.',
+        message: e instanceof ApiError ? e.message : t('dashboard.triage.errors.approveFailed'),
         previous: 'approving',
       })
     }
@@ -250,7 +254,7 @@ function TriageCard({
     if (!teamId) {
       setState({
         kind: 'error',
-        message: 'Veuillez choisir une équipe (ou utilisez « Valider sans assigner »).',
+        message: t('dashboard.triage.errors.teamRequired'),
         previous: 'approving',
       })
       return
@@ -263,8 +267,7 @@ function TriageCard({
     } catch (e) {
       setState({
         kind: 'error',
-        message:
-          e instanceof ApiError ? `${e.message} ${e.status === 409 ? '' : ''}`.trim() : 'Échec.',
+        message: e instanceof ApiError ? e.message : t('dashboard.triage.errors.submitFailed'),
         previous: 'approving',
       })
     }
@@ -297,7 +300,7 @@ function TriageCard({
         {report.isUrgent && (
           <span className="absolute top-2 start-2 inline-flex items-center gap-1 bg-red-600 text-white text-[10px] font-bold uppercase px-1.5 py-0.5 rounded">
             <span className="size-1.5 rounded-full bg-white animate-pulse" />
-            Urgent
+            {t('dashboard.triage.card.urgentBadge')}
           </span>
         )}
       </div>
@@ -337,13 +340,13 @@ function TriageCard({
           <div className="mt-3 p-3 bg-red-50/60 border border-red-200 rounded-md">
             <label className="block">
               <span className="block text-[11px] uppercase tracking-wider text-red-800 font-semibold mb-1.5">
-                Motif du rejet
+                {t('dashboard.triage.rejectForm.heading')}
               </span>
               <textarea
                 className="textarea text-sm"
                 rows={2}
                 style={{ minHeight: '3.5rem' }}
-                placeholder="Doublon de OZN-... / hors-zone / spam / contenu inapproprié…"
+                placeholder={t('dashboard.triage.rejectForm.placeholder')}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 disabled={submitting}
@@ -368,7 +371,7 @@ function TriageCard({
                 disabled={submitting}
                 className="btn-square btn-square-outline h-8 px-3 text-xs"
               >
-                Annuler
+                {t('dashboard.triage.rejectForm.cancel')}
               </button>
               <button
                 type="button"
@@ -381,7 +384,7 @@ function TriageCard({
                 ) : (
                   <Send className="size-3.5" />
                 )}
-                Confirmer le rejet
+                {t('dashboard.triage.rejectForm.submit')}
               </button>
             </div>
           </div>
@@ -392,15 +395,16 @@ function TriageCard({
           <div className="mt-3 p-3 bg-olive-50/60 border border-olive-200 rounded-md">
             <label className="block">
               <span className="block text-[11px] uppercase tracking-wider text-olive-800 font-semibold mb-1.5">
-                Assigner à une équipe
+                {t('dashboard.triage.assignForm.heading')}
               </span>
               {teams === null ? (
                 <span className="inline-flex items-center gap-2 text-xs text-gray-500">
-                  <Loader2 className="size-3 animate-spin" /> Chargement des équipes…
+                  <Loader2 className="size-3 animate-spin" />{' '}
+                  {t('dashboard.triage.assignForm.loadingTeams')}
                 </span>
               ) : teams.length === 0 ? (
                 <span className="text-xs text-gray-600">
-                  Aucune équipe active disponible. Vous pouvez quand même valider sans assigner.
+                  {t('dashboard.triage.assignForm.noTeams')}
                 </span>
               ) : (
                 <select
@@ -410,10 +414,11 @@ function TriageCard({
                   disabled={submitting}
                   autoFocus
                 >
-                  <option value="">— Choisir une équipe —</option>
+                  <option value="">{t('dashboard.triage.assignForm.teamPlaceholder')}</option>
                   {teams.map((tm) => (
                     <option key={tm.id} value={tm.id}>
-                      {tm.name} · {tm.zone} ({tm.memberCount} membres)
+                      {tm.name} · {tm.zone}{' '}
+                      {t('dashboard.triage.assignForm.teamMembers', { count: tm.memberCount })}
                     </option>
                   ))}
                 </select>
@@ -422,13 +427,13 @@ function TriageCard({
 
             <label className="block mt-3">
               <span className="block text-[11px] uppercase tracking-wider text-gray-600 font-semibold mb-1.5">
-                Note pour l'équipe (optionnel)
+                {t('dashboard.triage.assignForm.noteLabel')}
               </span>
               <textarea
                 className="textarea text-sm"
                 rows={2}
                 style={{ minHeight: '3.5rem' }}
-                placeholder="Précisions sur l'animal, accès, créneau…"
+                placeholder={t('dashboard.triage.assignForm.notePlaceholder')}
                 value={agentNote}
                 onChange={(e) => setAgentNote(e.target.value)}
                 disabled={submitting}
@@ -455,7 +460,7 @@ function TriageCard({
                 disabled={submitting}
                 className="btn-square btn-square-outline h-8 px-3 text-xs"
               >
-                Annuler
+                {t('dashboard.triage.assignForm.cancel')}
               </button>
               <button
                 type="button"
@@ -468,7 +473,7 @@ function TriageCard({
                 ) : (
                   <Check className="size-3.5" />
                 )}
-                Valider et assigner
+                {t('dashboard.triage.assignForm.submit')}
               </button>
             </div>
 
@@ -479,7 +484,7 @@ function TriageCard({
                 disabled={submitting}
                 className="text-[11px] text-gray-500 hover:text-olive-800 underline underline-offset-2 disabled:opacity-50"
               >
-                ou valider sans assigner pour l'instant
+                {t('dashboard.triage.assignForm.submitOnly')}
               </button>
             </div>
           </div>
@@ -490,7 +495,7 @@ function TriageCard({
           <div className="mt-auto pt-3 space-y-2">
             <span className="text-[11px] text-gray-500 inline-flex items-center gap-1 truncate max-w-full">
               <User className="size-3 shrink-0" />
-              <span className="truncate">{report.reporter.name ?? 'Anonyme'}</span>
+              <span className="truncate">{report.reporter.name ?? t('common.anonymous')}</span>
             </span>
             <div className="flex flex-wrap gap-1.5 justify-end">
               <button
@@ -514,7 +519,7 @@ function TriageCard({
                 className="btn-square btn-square-red h-8 px-3 text-xs"
               >
                 <UsersIcon className="size-3.5" />
-                Valider et assigner
+                {t('dashboard.triage.card.approveAndAssign')}
               </button>
             </div>
           </div>

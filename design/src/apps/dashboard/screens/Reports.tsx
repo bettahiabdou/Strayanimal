@@ -100,7 +100,7 @@ export function Reports() {
       })
       .catch((e) => {
         if (cancelled) return
-        setError(e instanceof ApiError ? e.message : 'Connexion impossible.')
+        setError(e instanceof ApiError ? e.message : t('dashboard.reports.errors.loadFailed'))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -173,7 +173,11 @@ export function Reports() {
             <p className="mt-1.5 text-sm text-gray-600">{t('dashboard.reports.subtitle')}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button className="btn-square btn-square-outline" disabled title="Bientôt disponible">
+            <button
+              className="btn-square btn-square-outline"
+              disabled
+              title={t('dashboard.reports.exportSoon')}
+            >
               <Download className="size-4" />
               {t('dashboard.reports.export')}
             </button>
@@ -290,7 +294,7 @@ export function Reports() {
                         </span>
                         {r.isUrgent && (
                           <span className="ms-2 inline-flex items-center text-[9px] font-bold uppercase text-red-600">
-                            ● Urgent
+                            {t('dashboard.reports.urgentBadge')}
                           </span>
                         )}
                       </td>

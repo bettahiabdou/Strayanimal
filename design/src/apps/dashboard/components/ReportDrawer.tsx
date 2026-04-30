@@ -65,31 +65,39 @@ const CATEGORY_LOWER = {
   STRAY: 'stray',
 } as const
 
-/* ─────────────── Audit-action → human label ─────────────── */
+/* ─────────────── Audit-action → i18n key ─────────────── */
 
-function labelForAudit(action: string, details: unknown): string {
+function labelForAudit(
+  action: string,
+  details: unknown,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string {
   const d = (details ?? {}) as Record<string, unknown>
   switch (action) {
     case 'report.submit':
-      return 'Signalement reçu du citoyen'
+      return t('dashboard.detail.timeline.submit')
     case 'report.approve':
-      return 'Validé'
+      return t('dashboard.detail.timeline.approve')
     case 'report.reject': {
       const reason = typeof d.reason === 'string' ? d.reason : null
-      return reason ? `Rejeté — ${reason}` : 'Rejeté'
+      return reason
+        ? t('dashboard.detail.timeline.rejectWithReason', { reason })
+        : t('dashboard.detail.timeline.reject')
     }
     case 'report.assign': {
       const team = typeof d.teamName === 'string' ? d.teamName : null
-      return team ? `Assigné à ${team}` : 'Assigné'
+      return team
+        ? t('dashboard.detail.timeline.assignToTeam', { team })
+        : t('dashboard.detail.timeline.assign')
     }
     case 'mission.en_route':
-      return "L'équipe est en route"
+      return t('dashboard.detail.timeline.enRoute')
     case 'mission.on_site':
-      return "L'équipe est arrivée sur place"
+      return t('dashboard.detail.timeline.onSite')
     case 'mission.captured':
-      return 'Capture réussie'
+      return t('dashboard.detail.timeline.captured')
     case 'mission.impossible':
-      return 'Capture impossible'
+      return t('dashboard.detail.timeline.impossible')
     default:
       return action
   }
@@ -143,7 +151,8 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
         if (!cancelled) setDetail(report)
       })
       .catch((e) => {
-        if (!cancelled) setLoadError(e instanceof ApiError ? e.message : 'Connexion impossible.')
+        if (!cancelled)
+          setLoadError(e instanceof ApiError ? e.message : t('dashboard.detail.errors.loadFailed'))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -188,7 +197,7 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
     } catch (e) {
       setState({
         kind: 'error',
-        message: e instanceof ApiError ? e.message : 'Échec de la validation.',
+        message: e instanceof ApiError ? e.message : t('dashboard.detail.errors.approveFailed'),
         previous: 'idle',
       })
     }
@@ -199,7 +208,7 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
     if (!reason.trim()) {
       setState({
         kind: 'error',
-        message: 'Veuillez préciser le motif de rejet.',
+        message: t('dashboard.detail.errors.reasonRequired'),
         previous: 'rejectForm',
       })
       return
@@ -215,7 +224,7 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
     } catch (e) {
       setState({
         kind: 'error',
-        message: e instanceof ApiError ? e.message : 'Échec du rejet.',
+        message: e instanceof ApiError ? e.message : t('dashboard.detail.errors.rejectFailed'),
         previous: 'rejectForm',
       })
     }
@@ -226,7 +235,7 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
     if (!teamId) {
       setState({
         kind: 'error',
-        message: 'Veuillez choisir une équipe.',
+        message: t('dashboard.detail.errors.teamRequired'),
         previous: 'assignForm',
       })
       return
@@ -243,7 +252,7 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
     } catch (e) {
       setState({
         kind: 'error',
-        message: e instanceof ApiError ? e.message : "Échec de l'assignation.",
+        message: e instanceof ApiError ? e.message : t('dashboard.detail.errors.assignFailed'),
         previous: 'assignForm',
       })
     }
@@ -358,7 +367,7 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
                 <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-2">
                   {t('dashboard.detail.citizenComment')}
                 </p>
-                <blockquote className="bg-gray-50 border-s-4 border-olive-500 rounded-r-md p-4 text-sm italic text-gray-800 leading-relaxed whitespace-pre-line">
+                <blockquote className="bg-gray-50 border-s-4 border-olive-500 rounded-e-md p-4 text-sm italic text-gray-800 leading-relaxed whitespace-pre-line">
                   « {detail.comment} »
                 </blockquote>
                 <div className="mt-4 flex items-center gap-4 text-xs text-gray-600 flex-wrap">
@@ -384,7 +393,7 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
               {detail.status === 'REJECTED' && detail.rejectReason && (
                 <div className="p-6 border-b border-gray-200 bg-red-50/40">
                   <p className="text-[10px] uppercase tracking-wider text-red-800 font-semibold mb-2">
-                    Motif du rejet
+                    {t('dashboard.detail.section.rejectReason')}
                   </p>
                   <p className="text-sm text-red-900">{detail.rejectReason}</p>
                 </div>
@@ -394,10 +403,10 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
               {detail.mission && (
                 <div className="p-6 border-b border-gray-200">
                   <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-3">
-                    Mission
+                    {t('dashboard.detail.section.mission')}
                   </p>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-                    <Fact label="Équipe">
+                    <Fact label={t('dashboard.detail.section.team')}>
                       <span className="text-sm text-gray-900">
                         {detail.mission.team?.name ?? '—'}
                       </span>
@@ -407,14 +416,14 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
                         </span>
                       )}
                     </Fact>
-                    <Fact label="Statut mission">
+                    <Fact label={t('dashboard.detail.section.missionStatus')}>
                       <span className="text-sm text-gray-900 capitalize">
                         {detail.mission.status.toLowerCase().replace('_', ' ')}
                       </span>
                     </Fact>
                     {detail.mission.agentNote && (
                       <div className="col-span-2">
-                        <Fact label="Note de l'agent">
+                        <Fact label={t('dashboard.detail.section.agentNote')}>
                           <p className="text-sm text-gray-700 whitespace-pre-line">
                             {detail.mission.agentNote}
                           </p>
@@ -423,7 +432,7 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
                     )}
                     {detail.mission.fieldNote && (
                       <div className="col-span-2">
-                        <Fact label="Note du terrain">
+                        <Fact label={t('dashboard.detail.section.fieldNote')}>
                           <p className="text-sm text-gray-700 whitespace-pre-line">
                             {detail.mission.fieldNote}
                           </p>
@@ -440,7 +449,9 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
                   {t('dashboard.detail.timeline')}
                 </p>
                 {detail.audit.length === 0 ? (
-                  <p className="text-sm text-gray-500 italic">Aucun événement.</p>
+                  <p className="text-sm text-gray-500 italic">
+                    {t('dashboard.detail.section.noEvents')}
+                  </p>
                 ) : (
                   <ol className="space-y-4">
                     {detail.audit.map((evt, i) => {
@@ -463,7 +474,7 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
                           </div>
                           <div className="pb-1">
                             <p className="text-sm text-gray-900">
-                              {labelForAudit(evt.action, evt.details)}
+                              {labelForAudit(evt.action, evt.details, t)}
                             </p>
                             <p className="text-xs text-gray-500 inline-flex items-center gap-1.5 mt-0.5 flex-wrap">
                               <Clock className="size-3" /> {fmtTime(evt.at)}
@@ -489,12 +500,12 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
               <div className="space-y-3">
                 <label className="block">
                   <span className="block text-[11px] uppercase tracking-wider text-red-800 font-semibold mb-1.5">
-                    Motif du rejet
+                    {t('dashboard.detail.rejectForm.heading')}
                   </span>
                   <textarea
                     className="textarea text-sm"
                     rows={2}
-                    placeholder="Doublon de OZN-… / hors-zone / spam / contenu inapproprié…"
+                    placeholder={t('dashboard.detail.rejectForm.placeholder')}
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                     disabled={submitting}
@@ -519,7 +530,7 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
                     disabled={submitting}
                     className="btn-square btn-square-outline h-9 px-3 text-xs"
                   >
-                    Annuler
+                    {t('dashboard.detail.rejectForm.cancel')}
                   </button>
                   <button
                     type="button"
@@ -532,7 +543,7 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
                     ) : (
                       <Send className="size-3.5" />
                     )}
-                    Confirmer le rejet
+                    {t('dashboard.detail.rejectForm.submit')}
                   </button>
                 </div>
               </div>
@@ -543,14 +554,17 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
               <div className="space-y-3">
                 <label className="block">
                   <span className="block text-[11px] uppercase tracking-wider text-olive-800 font-semibold mb-1.5">
-                    Équipe
+                    {t('dashboard.detail.assignForm.heading')}
                   </span>
                   {teams === null ? (
                     <span className="inline-flex items-center gap-2 text-xs text-gray-500">
-                      <Loader2 className="size-3 animate-spin" /> Chargement des équipes…
+                      <Loader2 className="size-3 animate-spin" />{' '}
+                      {t('dashboard.detail.assignForm.loadingTeams')}
                     </span>
                   ) : teams.length === 0 ? (
-                    <span className="text-xs text-gray-600">Aucune équipe active disponible.</span>
+                    <span className="text-xs text-gray-600">
+                      {t('dashboard.detail.assignForm.noTeams')}
+                    </span>
                   ) : (
                     <select
                       className="textarea text-sm h-9"
@@ -559,10 +573,13 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
                       disabled={submitting}
                       autoFocus
                     >
-                      <option value="">— Choisir une équipe —</option>
+                      <option value="">{t('dashboard.detail.assignForm.teamPlaceholder')}</option>
                       {teams.map((tm) => (
                         <option key={tm.id} value={tm.id}>
-                          {tm.name} · {tm.zone} ({tm.memberCount} membres)
+                          {tm.name} · {tm.zone}{' '}
+                          {t('dashboard.detail.assignForm.teamMembers', {
+                            count: tm.memberCount,
+                          })}
                         </option>
                       ))}
                     </select>
@@ -570,12 +587,12 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
                 </label>
                 <label className="block">
                   <span className="block text-[11px] uppercase tracking-wider text-gray-600 font-semibold mb-1.5">
-                    Note pour l'équipe (optionnel)
+                    {t('dashboard.detail.assignForm.noteLabel')}
                   </span>
                   <textarea
                     className="textarea text-sm"
                     rows={2}
-                    placeholder="Précisions sur l'animal, accès, créneau…"
+                    placeholder={t('dashboard.detail.assignForm.notePlaceholder')}
                     value={agentNote}
                     onChange={(e) => setAgentNote(e.target.value)}
                     disabled={submitting}
@@ -600,7 +617,7 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
                     disabled={submitting}
                     className="btn-square btn-square-outline h-9 px-3 text-xs"
                   >
-                    Annuler
+                    {t('dashboard.detail.assignForm.cancel')}
                   </button>
                   <button
                     type="button"
@@ -613,7 +630,7 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
                     ) : (
                       <UsersIcon className="size-3.5" />
                     )}
-                    Confirmer l'assignation
+                    {t('dashboard.detail.assignForm.submit')}
                   </button>
                 </div>
               </div>
@@ -672,8 +689,8 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
                     detail.status === 'REJECTED') && (
                     <p className="text-xs text-gray-500 flex-1 self-center">
                       {detail.status === 'REJECTED'
-                        ? 'Ce signalement a été rejeté.'
-                        : 'Ce signalement est en cours de traitement.'}
+                        ? t('dashboard.detail.statusMessage.rejected')
+                        : t('dashboard.detail.statusMessage.processing')}
                     </p>
                   )}
                 </div>
@@ -711,6 +728,7 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 }
 
 function PhotoGallery({ media }: { media: ReportDetail['media'] }) {
+  const { t } = useTranslation()
   const [activeIdx, setActiveIdx] = useState(0)
   const photos = media.filter(
     (m) => m.purpose === 'CITIZEN_REPORT' || m.purpose === 'POST_INTERVENTION',
@@ -718,7 +736,7 @@ function PhotoGallery({ media }: { media: ReportDetail['media'] }) {
   if (photos.length === 0) {
     return (
       <div className="aspect-video bg-gray-100 grid place-items-center text-gray-400 text-sm">
-        Aucune photo
+        {t('dashboard.detail.section.noPhoto')}
       </div>
     )
   }

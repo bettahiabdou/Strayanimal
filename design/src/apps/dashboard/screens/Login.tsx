@@ -43,7 +43,7 @@ export function Login() {
       if (err instanceof ApiError) {
         setError(err.message)
       } else {
-        setError('Connexion impossible. Réessayez.')
+        setError(t('dashboard.login.errors.network'))
       }
     } finally {
       setSubmitting(false)
@@ -68,16 +68,14 @@ export function Login() {
             {t('common.brand')}
           </p>
           <h1 className="mt-3 text-4xl xl:text-5xl font-black leading-[1.1] max-w-md">
-            Plateforme de gestion des signalements citoyens.
+            {t('dashboard.login.brandHeading')}
           </h1>
           <p className="mt-5 text-white/85 text-base max-w-md leading-relaxed">
-            Réception, validation, assignation aux équipes terrain, et suivi des interventions — un
-            seul espace pour les agents de la commune.
+            {t('dashboard.login.brandLead')}
           </p>
         </div>
         <p className="text-[11px] text-white/55">
-          © {new Date().getFullYear()} Groupement des Collectivités Territoriales pour la Prévention
-          et la Santé Publique — Ouarzazate
+          {t('dashboard.login.copyrightLine', { year: new Date().getFullYear() })}
         </p>
       </div>
 
@@ -163,12 +161,12 @@ export function Login() {
                 className="btn-square btn-square-red w-full disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {submitting && <Loader2 className="size-4 animate-spin" />}
-                {submitting ? 'Connexion…' : t('dashboard.login.submit')}
+                {submitting ? t('dashboard.login.signingIn') : t('dashboard.login.submit')}
               </button>
             </form>
 
             <p className="mt-8 text-xs text-gray-500 text-center">
-              Accès réservé au personnel autorisé. Toute connexion est journalisée.
+              {t('dashboard.login.legalNotice')}
             </p>
           </div>
         </div>

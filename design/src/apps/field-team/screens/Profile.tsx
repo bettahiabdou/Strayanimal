@@ -62,7 +62,7 @@ export function Profile() {
             <h2 className="text-xl font-black truncate">{user?.name ?? '—'}</h2>
             <p className="text-xs text-white/85 inline-flex items-center gap-1.5">
               <Truck className="size-3" />
-              {teamName ?? 'Équipe terrain'}
+              {teamName ?? t('fieldTeam.shell.teamFallback')}
             </p>
           </div>
         </div>
@@ -87,7 +87,7 @@ export function Profile() {
                 'relative h-6 w-11 rounded-full transition-colors shrink-0',
                 push ? 'bg-olive-600' : 'bg-gray-300',
               )}
-              aria-label="Toggle notifications"
+              aria-label={t('fieldTeam.profile.toggleNotificationsAria')}
             >
               <span
                 className={cn(

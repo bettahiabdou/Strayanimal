@@ -133,13 +133,13 @@ export function Heatmap() {
             {/* Map controls */}
             <div className="absolute top-3 end-3 z-10 flex flex-col gap-1.5">
               <button
-                aria-label="Recenter"
+                aria-label={t('dashboard.heatmap.recenter')}
                 className="size-9 grid place-items-center bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 text-gray-700"
               >
                 <Crosshair className="size-4" />
               </button>
               <button
-                aria-label="Layers"
+                aria-label={t('dashboard.heatmap.layersAria')}
                 className="size-9 grid place-items-center bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 text-gray-700"
               >
                 <Layers className="size-4" />
@@ -148,7 +148,7 @@ export function Heatmap() {
 
             {/* Coordinate strip */}
             <div className="absolute bottom-3 start-3 z-10 bg-white/95 backdrop-blur border border-gray-200 rounded-md px-3 py-1.5 text-[11px] text-gray-700 font-medium shadow-sm">
-              Ouarzazate · 30.92°N, 6.91°O · zoom 13
+              {t('dashboard.heatmap.coordinates')}
             </div>
 
             {/* OSM credit */}
@@ -184,7 +184,7 @@ export function Heatmap() {
               </span>
             </div>
             <span className="ms-auto text-[11px] text-gray-500 font-mono">
-              {visibleHotspots.length} points · zoom 13
+              {t('dashboard.heatmap.pointsCount', { count: visibleHotspots.length })}
             </span>
           </div>
         </div>

@@ -478,18 +478,18 @@ function ReportForm() {
   async function onSubmit() {
     // Step-1 fields
     if (!data.comment.trim()) {
-      setError('Veuillez décrire la situation.')
+      setError(t('citizen.form.errors.descRequired'))
       setStep(1)
       return
     }
     // Step-2 fields
     if (!data.address.trim()) {
-      setError('Veuillez préciser l’adresse.')
+      setError(t('citizen.form.errors.addressRequired'))
       setStep(2)
       return
     }
     if (!data.coords) {
-      setError('Position introuvable. Cliquez sur la carte pour placer un repère.')
+      setError(t('citizen.form.errors.locationRequired'))
       setStep(2)
       return
     }
@@ -516,7 +516,7 @@ function ReportForm() {
       if (err instanceof ApiError) {
         setError(err.message)
       } else {
-        setError('Connexion impossible. Réessayez plus tard.')
+        setError(t('citizen.form.errors.network'))
       }
     } finally {
       setSubmitting(false)
@@ -600,7 +600,7 @@ function ReportForm() {
             ) : (
               <CheckCircle2 className="size-4" />
             )}
-            {submitting ? 'Envoi…' : t('citizen.form.submit')}
+            {submitting ? t('citizen.form.submitting') : t('citizen.form.submit')}
           </button>
         )}
       </div>
@@ -696,7 +696,7 @@ function Step2({ data, update }: StepProps) {
         </div>
       </Field>
 
-      <Field label="Position sur la carte">
+      <Field label={t('citizen.form.fields_locationOnMap')}>
         <MapPicker value={data.coords} onChange={(c) => update('coords', c)} />
       </Field>
 
@@ -891,12 +891,13 @@ function FloatingActions() {
 }
 
 function BackToHubLink({ isRTL }: { isRTL: boolean }) {
+  const { t } = useTranslation()
   return (
     <Link
       to="/"
       className="fixed bottom-6 start-4 z-40 inline-flex items-center gap-1.5 rounded-full bg-white border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 shadow hover:bg-gray-50"
     >
-      {isRTL ? '→' : '←'} Aperçu design
+      {isRTL ? '→' : '←'} {t('common.actions.previewHub')}
     </Link>
   )
 }

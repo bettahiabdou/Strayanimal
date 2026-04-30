@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Upload, X, Loader2, Image as ImageIcon } from 'lucide-react'
 
 const MAX_DIM = 1280 // px on the longest side
@@ -16,6 +17,7 @@ type Props = {
 }
 
 export function PhotoPicker({ value, onChange, hint, label, uploadLabel }: Props) {
+  const { t } = useTranslation()
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -29,7 +31,7 @@ export function PhotoPicker({ value, onChange, hint, label, uploadLabel }: Props
       const accepted = Array.from(files).slice(0, remaining)
       for (const f of accepted) {
         if (!ACCEPT.split(',').includes(f.type)) {
-          setError(`Format non supporté : ${f.name}`)
+          setError(t('citizen.photo.errors.unsupported', { name: f.name }))
           continue
         }
         const dataUrl = await resizeToDataUrl(f)
@@ -37,7 +39,7 @@ export function PhotoPicker({ value, onChange, hint, label, uploadLabel }: Props
       }
       onChange(next)
     } catch (e) {
-      setError((e as Error).message || 'Échec du traitement de la photo.')
+      setError((e as Error).message || t('citizen.photo.errors.processFailed'))
     } finally {
       setBusy(false)
       if (inputRef.current) inputRef.current.value = ''
@@ -59,11 +61,15 @@ export function PhotoPicker({ value, onChange, hint, label, uploadLabel }: Props
               key={i}
               className="relative aspect-square bg-gray-100 rounded-md overflow-hidden border border-gray-200"
             >
-              <img src={src} alt={`Photo ${i + 1}`} className="size-full object-cover" />
+              <img
+                src={src}
+                alt={t('citizen.photo.alt', { n: i + 1 })}
+                className="size-full object-cover"
+              />
               <button
                 type="button"
                 onClick={() => remove(i)}
-                aria-label="Supprimer cette photo"
+                aria-label={t('citizen.photo.removeAria')}
                 className="absolute top-1 end-1 size-6 rounded-full bg-red-600 text-white grid place-items-center hover:bg-red-700 shadow"
               >
                 <X className="size-3.5" />
@@ -88,7 +94,11 @@ export function PhotoPicker({ value, onChange, hint, label, uploadLabel }: Props
             <ImageIcon className="size-6" />
           )}
           <span className="text-sm font-medium">
-            {busy ? 'Préparation…' : value.length === 0 ? uploadLabel : 'Ajouter une autre photo'}
+            {busy
+              ? t('citizen.photo.preparing')
+              : value.length === 0
+                ? uploadLabel
+                : t('citizen.photo.addAnother')}
           </span>
           <span className="text-[10px] text-gray-400">
             {value.length}/{MAX_FILES} · JPEG/PNG/WebP · max 4 MB

@@ -117,7 +117,7 @@ export function Stats() {
               <h2 className="font-bold text-gray-900">{t('dashboard.stats.volumeTitle')}</h2>
               <p className="text-xs text-gray-500 mt-0.5">{t('dashboard.stats.volumeSubtitle')}</p>
             </div>
-            <div className="text-right text-xs">
+            <div className="text-end text-xs">
               <p className="text-gray-500 inline-flex items-center gap-1.5 justify-end">
                 <Award className="size-3.5 text-amber-500" />
                 {t('dashboard.stats.peakDay')}
@@ -143,7 +143,7 @@ export function Stats() {
             <p className="font-mono text-3xl font-bold text-gray-900">{KPI.avgResponse}</p>
             <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-emerald-600 font-semibold">
               <TrendingDown className="size-3.5" />
-              {Math.abs(KPI.avgResponseDelta)}% plus rapide
+              {t('dashboard.stats.fasterPercent', { percent: Math.abs(KPI.avgResponseDelta) })}
             </p>
             <div className="mt-4">
               <LineChart
@@ -151,7 +151,7 @@ export function Stats() {
                 stroke="#3b82f6"
                 height={140}
                 showAxis={false}
-                formatY={(n) => `${n} min`}
+                formatY={(n) => t('dashboard.stats.minutes', { value: n })}
               />
             </div>
           </div>
@@ -163,13 +163,15 @@ export function Stats() {
         <section className="bg-white border border-gray-200 rounded-md">
           <div className="border-b border-gray-200 px-5 py-4">
             <h2 className="font-bold text-gray-900">{t('dashboard.stats.categoryTitle')}</h2>
-            <p className="text-xs text-gray-500 mt-0.5">{total} signalements</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {t('dashboard.stats.reportsCount', { count: total })}
+            </p>
           </div>
           <div className="p-5 flex flex-col items-center">
             <Donut
               slices={slices}
               centerValue={String(total)}
-              centerLabel="Total"
+              centerLabel={t('dashboard.stats.totalLabel')}
               size={180}
               thickness={22}
             />
@@ -193,7 +195,7 @@ export function Stats() {
           <div className="border-b border-gray-200 px-5 py-4">
             <h2 className="font-bold text-gray-900">{t('dashboard.stats.zoneTitle')}</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              Top {ZONE_STATS.length} quartiers les plus actifs
+              {t('dashboard.stats.topZonesSubtitle', { count: ZONE_STATS.length })}
             </p>
           </div>
           <ul className="divide-y divide-gray-100">
@@ -288,6 +290,7 @@ function KpiCard({
   icon: typeof FileText
   tone: KpiTone
 }) {
+  const { t } = useTranslation()
   const styles: Record<KpiTone, { iconBg: string; iconColor: string; bar: string }> = {
     neutral: { iconBg: 'bg-olive-50', iconColor: 'text-olive-700', bar: 'bg-olive-600' },
     success: { iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600', bar: 'bg-emerald-500' },
@@ -327,7 +330,10 @@ function KpiCard({
         >
           <TrendIcon className="size-3.5" />
           {delta > 0 ? '+' : ''}
-          {delta}%<span className="text-gray-500 font-normal ms-1">vs période préc.</span>
+          {delta}%
+          <span className="text-gray-500 font-normal ms-1">
+            {t('dashboard.stats.vsPreviousShort')}
+          </span>
         </p>
       )}
     </div>

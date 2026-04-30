@@ -22,7 +22,7 @@ export function TopBar({ onMobileMenuOpen }: Props) {
           type="button"
           onClick={onMobileMenuOpen}
           className="lg:hidden size-9 grid place-items-center rounded-md hover:bg-gray-100 text-gray-700 -ms-1.5 shrink-0"
-          aria-label={t('dashboard.topbar.openMenu', 'Ouvrir le menu')}
+          aria-label={t('dashboard.topbar.openMenu')}
         >
           <Menu className="size-5" />
         </button>

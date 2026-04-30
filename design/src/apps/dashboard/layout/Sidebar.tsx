@@ -51,11 +51,12 @@ function initials(name: string) {
     .toUpperCase()
 }
 
-const ROLE_LABEL: Record<string, string> = {
-  ADMIN: 'Administrateur',
-  SUPERVISOR: 'Superviseur',
-  AGENT: 'Agent communal',
-  FIELD_TEAM: 'Équipe terrain',
+/** Map UserRole → existing dashboard.users.role.* i18n keys. */
+const ROLE_KEY: Record<string, string> = {
+  ADMIN: 'dashboard.users.role.admin',
+  SUPERVISOR: 'dashboard.users.role.supervisor',
+  AGENT: 'dashboard.users.role.agent',
+  FIELD_TEAM: 'dashboard.users.role.fieldTeam',
 }
 
 type Props = {
@@ -79,7 +80,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: Props) {
       {/* Backdrop — only ever rendered on <lg, only when the drawer is open */}
       <button
         type="button"
-        aria-label="Fermer le menu"
+        aria-label={t('dashboard.sidebar.closeMenu')}
         onClick={onMobileClose}
         className={cn(
           'lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px] transition-opacity',
@@ -112,12 +113,14 @@ export function Sidebar({ mobileOpen, onMobileClose }: Props) {
             <p className="text-[10px] uppercase tracking-wider text-white/60 font-semibold">
               {t('common.communeShort')}
             </p>
-            <p className="text-sm font-bold text-white truncate">Animaux errants</p>
+            <p className="text-sm font-bold text-white truncate">
+              {t('dashboard.sidebar.tagline')}
+            </p>
           </div>
           <button
             type="button"
             onClick={onMobileClose}
-            aria-label="Fermer le menu"
+            aria-label={t('dashboard.sidebar.closeMenu')}
             className="lg:hidden size-9 grid place-items-center rounded-md hover:bg-olive-700 text-white/80 hover:text-white"
           >
             <X className="size-5" />
@@ -153,7 +156,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: Props) {
 
           <div className="pt-4 mt-4 border-t border-olive-700/60 space-y-0.5">
             <p className="px-3 mb-2 text-[10px] uppercase tracking-wider text-white/45 font-semibold">
-              Administration
+              {t('dashboard.sidebar.adminSection')}
             </p>
             {adminItems.map(({ to, icon: Icon, key }) => (
               <NavLink
@@ -185,7 +188,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: Props) {
             <div className="flex-1 min-w-0 leading-tight">
               <p className="text-sm font-semibold text-white truncate">{user?.name ?? '…'}</p>
               <p className="text-[11px] text-white/60 truncate">
-                {user ? (ROLE_LABEL[user.role] ?? user.role) : ''}
+                {user ? (ROLE_KEY[user.role] ? t(ROLE_KEY[user.role]!) : user.role) : ''}
               </p>
             </div>
             <button

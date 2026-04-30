@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context'
 import { RequireFieldAuth } from './RequireFieldAuth'
 
 export function MobileShell() {
+  const { t } = useTranslation()
   return (
     <RequireFieldAuth>
       <div className="min-h-svh bg-gray-100 grid place-items-center py-6 lg:py-10">
@@ -15,7 +16,7 @@ export function MobileShell() {
           className="fixed bottom-4 start-4 z-50 inline-flex items-center gap-1.5 rounded-full bg-white border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 shadow hover:bg-gray-50"
         >
           <ChevronLeft className="size-3.5 rtl:rotate-180" />
-          Aperçu design
+          {t('common.actions.previewHub')}
         </Link>
 
         {/* Phone frame for desktop preview */}
@@ -49,7 +50,7 @@ function TopAppBar() {
       <div className="px-4 h-14 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[9px] uppercase tracking-[0.18em] text-white/70 font-semibold">
-            {user?.zone ?? 'Équipe terrain'}
+            {user?.zone ?? t('fieldTeam.shell.teamFallback')}
           </p>
           <p className="text-sm font-bold truncate">{user?.name ?? '—'}</p>
         </div>

@@ -49,18 +49,25 @@ function avatarColor(name: string) {
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
   return colors[h % colors.length]
 }
-function fmtAgo(iso?: string) {
-  if (!iso) return '—'
-  const diff = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
-  if (diff < 60) return `il y a ${diff} min`
-  if (diff < 60 * 24) return `il y a ${Math.floor(diff / 60)} h`
-  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+function useFmtAgo() {
+  const { t, i18n } = useTranslation()
+  return (iso?: string) => {
+    if (!iso) return '—'
+    const diff = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
+    if (diff < 60) return t('common.timeAgo.minutes', { count: diff })
+    if (diff < 60 * 24) return t('common.timeAgo.hours', { count: Math.floor(diff / 60) })
+    return new Date(iso).toLocaleDateString(i18n.language === 'ar' ? 'ar-MA' : 'fr-FR', {
+      day: 'numeric',
+      month: 'short',
+    })
+  }
 }
 
 type Filter = 'all' | UserRole
 
 export function Users() {
   const { t } = useTranslation()
+  const fmtAgo = useFmtAgo()
   const [filter, setFilter] = useState<Filter>('all')
   const [search, setSearch] = useState('')
 
@@ -239,13 +246,13 @@ export function Users() {
                       <td className="pe-4 py-3 text-end whitespace-nowrap">
                         <button
                           className="size-8 rounded-md hover:bg-gray-100 grid place-items-center text-gray-500 inline-grid"
-                          aria-label="Modifier"
+                          aria-label={t('dashboard.users.actions.edit')}
                         >
                           <Edit3 className="size-3.5" />
                         </button>
                         <button
                           className="size-8 rounded-md hover:bg-gray-100 grid place-items-center text-gray-500 inline-grid ms-1"
-                          aria-label="Plus"
+                          aria-label={t('dashboard.users.actions.more')}
                         >
                           <MoreHorizontal className="size-4" />
                         </button>

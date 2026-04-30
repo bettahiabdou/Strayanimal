@@ -17,7 +17,27 @@
     "error": "Une erreur est survenue",
     "retry": "Réessayer",
     "yes": "Oui",
-    "no": "Non"
+    "no": "Non",
+    "timeAgo": {
+      "justNow": "à l'instant",
+      "seconds": "il y a {{count}}s",
+      "minutes": "il y a {{count}} min",
+      "hours": "il y a {{count}} h",
+      "days": "il y a {{count}} j"
+    },
+    "errors": {
+      "network": "Connexion impossible. Réessayez.",
+      "unknown": "Une erreur est survenue."
+    },
+    "actions": {
+      "refresh": "Rafraîchir",
+      "openMenu": "Ouvrir le menu",
+      "closeMenu": "Fermer le menu",
+      "previewHub": "Aperçu design",
+      "edit": "Modifier",
+      "more": "Plus"
+    },
+    "anonymous": "Anonyme"
   },
   "dashboard": {
     "login": {
@@ -28,7 +48,15 @@
       "password": "Mot de passe",
       "submit": "Se connecter",
       "forgot": "Mot de passe oublié ?",
-      "back": "Retour au site public"
+      "back": "Retour au site public",
+      "signingIn": "Connexion…",
+      "brandHeading": "Plateforme de gestion des signalements citoyens.",
+      "brandLead": "Réception, validation, assignation aux équipes terrain, et suivi des interventions — un seul espace pour les agents de la commune.",
+      "legalNotice": "Accès réservé au personnel autorisé. Toute connexion est journalisée.",
+      "copyrightLine": "© {{year}} Groupement des Collectivités Territoriales pour la Prévention et la Santé Publique — Ouarzazate",
+      "errors": {
+        "network": "Connexion impossible. Réessayez."
+      }
     },
     "nav": {
       "overview": "Vue d'ensemble",
@@ -45,7 +73,13 @@
     },
     "topbar": {
       "search": "Rechercher un signalement, une zone, une équipe…",
-      "notifications": "Notifications"
+      "notifications": "Notifications",
+      "openMenu": "Ouvrir le menu"
+    },
+    "sidebar": {
+      "tagline": "Animaux errants",
+      "adminSection": "Administration",
+      "closeMenu": "Fermer le menu"
     },
     "overview": {
       "title": "Vue d'ensemble",
@@ -59,7 +93,27 @@
       "triageQueue": "File de triage",
       "triageQueueAction": "Voir tout",
       "hotZones": "Zones les plus actives",
-      "recentActivity": "Activité récente"
+      "recentActivity": "Activité récente",
+      "pendingHeader": "{{count}} en attente",
+      "empty": {
+        "triage": "Aucun signalement en attente — bon travail.",
+        "activityWeek": "Aucune activité cette semaine.",
+        "activityRecent": "Aucune activité récente."
+      },
+      "activity": {
+        "report": {
+          "submit": "{{who}} a soumis un nouveau signalement",
+          "approve": "{{who}} a validé",
+          "reject": "{{who}} a rejeté",
+          "assign": "{{who}} a assigné"
+        },
+        "auth": {
+          "login": "{{who}} s'est connecté(e)",
+          "loginFail": "{{who}} : connexion échouée",
+          "loginBlocked": "{{who}} : connexion bloquée",
+          "logout": "{{who}} s'est déconnecté(e)"
+        }
+      }
     },
     "users": {
       "title": "Utilisateurs",
@@ -98,13 +152,22 @@
         "inactive": "Inactif",
         "pending": "En attente"
       },
-      "noResults": "Aucun utilisateur ne correspond aux filtres."
+      "noResults": "Aucun utilisateur ne correspond aux filtres.",
+      "actions": {
+        "edit": "Modifier",
+        "more": "Plus"
+      }
     },
     "settings": {
       "title": "Paramètres",
       "subtitle": "Configuration de la plateforme et des règles métier",
       "saveAll": "Enregistrer",
       "saved": "Modifications enregistrées",
+      "savedShort": "Enregistré",
+      "errors": {
+        "loadFailed": "Connexion impossible.",
+        "saveFailed": "Échec de la sauvegarde."
+      },
       "general": {
         "title": "Informations générales",
         "subtitle": "Identité de la commune et coordonnées du service",
@@ -206,7 +269,11 @@
       "medium": "Moyenne",
       "high": "Élevée",
       "critical": "Critique",
-      "noShow": "Aucune zone critique sur la période."
+      "noShow": "Aucune zone critique sur la période.",
+      "recenter": "Recentrer",
+      "layersAria": "Couches",
+      "coordinates": "Ouarzazate · 30.92°N, 6.91°O · zoom 13",
+      "pointsCount": "{{count}} points · zoom 13"
     },
     "stats": {
       "title": "Statistiques",
@@ -240,7 +307,13 @@
         "avgResponse": "Délai moyen"
       },
       "peakDay": "Jour le plus actif",
-      "of": "de"
+      "of": "de",
+      "fasterPercent": "{{percent}}% plus rapide",
+      "minutes": "{{value}} min",
+      "reportsCount": "{{count}} signalements",
+      "totalLabel": "Total",
+      "topZonesSubtitle": "Top {{count}} quartiers les plus actifs",
+      "vsPreviousShort": "vs période préc."
     },
     "teams": {
       "title": "Équipes terrain",
@@ -268,7 +341,12 @@
         "currentMission": "Mission en cours",
         "viewDetail": "Voir le détail",
         "edit": "Modifier",
-        "noTeams": "Aucune équipe ne correspond aux filtres."
+        "noTeams": "Aucune équipe ne correspond aux filtres.",
+        "lead": "Chef",
+        "startedAt": "Démarrée {{when}}",
+        "moreActions": "Plus",
+        "off": "En pause — prochain shift demain",
+        "idle": "Aucune mission en cours"
       }
     },
     "map": {
@@ -286,7 +364,14 @@
       "zoomIn": "Zoom avant",
       "zoomOut": "Zoom arrière",
       "layers": "Couches",
-      "viewOSM": "Voir sur OpenStreetMap"
+      "viewOSM": "Voir sur OpenStreetMap",
+      "empty": "Aucun pin pour ces filtres.",
+      "onMap": "Sur la carte",
+      "pinsCount": "{{count}} pins",
+      "urgentBadge": "● Urgent",
+      "errors": {
+        "loadFailed": "Connexion impossible."
+      }
     },
     "reports": {
       "title": "Signalements",
@@ -310,7 +395,12 @@
       "showing": "{{from}}–{{to}} sur {{total}}",
       "previous": "Précédent",
       "next": "Suivant",
-      "noResults": "Aucun signalement ne correspond aux filtres."
+      "noResults": "Aucun signalement ne correspond aux filtres.",
+      "urgentBadge": "● Urgent",
+      "exportSoon": "Bientôt disponible",
+      "errors": {
+        "loadFailed": "Connexion impossible."
+      }
     },
     "detail": {
       "close": "Fermer",
@@ -342,6 +432,57 @@
         "inProgress": "Marqué en cours par {{team}}",
         "resolved": "Clôturé — capture réussie",
         "rejected": "Rejeté par {{agent}}"
+      },
+      "timeline": {
+        "submit": "Signalement reçu du citoyen",
+        "approve": "Validé",
+        "rejectWithReason": "Rejeté — {{reason}}",
+        "reject": "Rejeté",
+        "assignToTeam": "Assigné à {{team}}",
+        "assign": "Assigné",
+        "enRoute": "L'équipe est en route",
+        "onSite": "L'équipe est arrivée sur place",
+        "captured": "Capture réussie",
+        "impossible": "Capture impossible"
+      },
+      "section": {
+        "mission": "Mission",
+        "rejectReason": "Motif du rejet",
+        "team": "Équipe",
+        "missionStatus": "Statut mission",
+        "agentNote": "Note de l'agent",
+        "fieldNote": "Note du terrain",
+        "noEvents": "Aucun événement.",
+        "noPhoto": "Aucune photo"
+      },
+      "rejectForm": {
+        "heading": "Motif du rejet",
+        "placeholder": "Doublon de OZN-… / hors-zone / spam / contenu inapproprié…",
+        "cancel": "Annuler",
+        "submit": "Confirmer le rejet"
+      },
+      "assignForm": {
+        "heading": "Équipe",
+        "loadingTeams": "Chargement des équipes…",
+        "noTeams": "Aucune équipe active disponible.",
+        "teamPlaceholder": "— Choisir une équipe —",
+        "teamMembers": "({{count}} membres)",
+        "noteLabel": "Note pour l'équipe (optionnel)",
+        "notePlaceholder": "Précisions sur l'animal, accès, créneau…",
+        "cancel": "Annuler",
+        "submit": "Confirmer l'assignation"
+      },
+      "statusMessage": {
+        "rejected": "Ce signalement a été rejeté.",
+        "processing": "Ce signalement est en cours de traitement."
+      },
+      "errors": {
+        "loadFailed": "Connexion impossible.",
+        "approveFailed": "Échec de la validation.",
+        "rejectFailed": "Échec du rejet.",
+        "assignFailed": "Échec de l'assignation.",
+        "reasonRequired": "Veuillez préciser le motif de rejet.",
+        "teamRequired": "Veuillez choisir une équipe."
       }
     },
     "triage": {
@@ -356,7 +497,35 @@
         "received": "Reçu",
         "approve": "Valider",
         "reject": "Rejeter",
-        "viewDetail": "Voir le détail"
+        "viewDetail": "Voir le détail",
+        "approveAndAssign": "Valider et assigner",
+        "urgentBadge": "Urgent",
+        "queueCount": "{{count}} en file"
+      },
+      "rejectForm": {
+        "heading": "Motif du rejet",
+        "placeholder": "Doublon de OZN-... / hors-zone / spam / contenu inapproprié…",
+        "cancel": "Annuler",
+        "submit": "Confirmer le rejet"
+      },
+      "assignForm": {
+        "heading": "Assigner à une équipe",
+        "loadingTeams": "Chargement des équipes…",
+        "noTeams": "Aucune équipe active disponible. Vous pouvez quand même valider sans assigner.",
+        "teamPlaceholder": "— Choisir une équipe —",
+        "teamMembers": "({{count}} membres)",
+        "noteLabel": "Note pour l'équipe (optionnel)",
+        "notePlaceholder": "Précisions sur l'animal, accès, créneau…",
+        "cancel": "Annuler",
+        "submit": "Valider et assigner",
+        "submitOnly": "ou valider sans assigner pour l'instant"
+      },
+      "errors": {
+        "rejectReasonRequired": "Veuillez préciser le motif de rejet.",
+        "teamRequired": "Veuillez choisir une équipe (ou utilisez « Valider sans assigner »).",
+        "rejectFailed": "Échec du rejet.",
+        "approveFailed": "Échec de la validation.",
+        "submitFailed": "Échec."
       },
       "empty": "Aucun signalement en attente — bon travail."
     },
@@ -383,13 +552,19 @@
       "password": "Code agent",
       "submit": "Se connecter",
       "back": "Retour à l'aperçu",
-      "team": "Équipe"
+      "team": "Équipe",
+      "platformLine": "Plateforme · GCT Ouarzazate",
+      "errors": {
+        "wrongRole": "Ce compte n'appartient pas à une équipe terrain. Utilisez le tableau de bord à la place.",
+        "network": "Connexion impossible. Réessayez."
+      }
     },
     "shell": {
       "online": "En ligne",
       "offline": "Hors ligne",
       "agentLabel": "Agent",
-      "teamLabel": "Équipe"
+      "teamLabel": "Équipe",
+      "teamFallback": "Équipe terrain"
     },
     "tabs": {
       "inbox": "Missions",
@@ -423,7 +598,23 @@
       "category": "Type de situation",
       "animals": "Nombre",
       "received": "Reçue le {{date}}",
-      "back": "Retour aux missions"
+      "receivedShort": "Reçu",
+      "back": "Retour aux missions",
+      "errors": {
+        "notFound": "Mission introuvable.",
+        "network": "Connexion impossible.",
+        "photoFailed": "Impossible de lire la photo. Réessayez."
+      },
+      "banner": {
+        "enRoute": "En route — bonne mission.",
+        "onSite": "Vous êtes sur place.",
+        "captured": "Capture réussie.",
+        "impossible": "Marqué comme impossible."
+      },
+      "photoActions": {
+        "removeAria": "Retirer la photo",
+        "takeButton": "Prendre la photo"
+      }
     },
     "actions": {
       "depart": "Je pars",
@@ -468,7 +659,8 @@
       "language": "Langue",
       "notifications": "Notifications push",
       "logout": "Se déconnecter",
-      "version": "Version 0.1 — aperçu design"
+      "version": "Version 0.1 — aperçu design",
+      "toggleNotificationsAria": "Activer/désactiver les notifications"
     },
     "complete": {
       "title": "Mission clôturée",
@@ -591,7 +783,39 @@
       },
       "submit": "Envoyer le signalement",
       "next": "Continuer",
-      "back": "Précédent"
+      "back": "Précédent",
+      "submitting": "Envoi…",
+      "fields_locationOnMap": "Position sur la carte",
+      "errors": {
+        "descRequired": "Veuillez décrire la situation.",
+        "addressRequired": "Veuillez préciser l'adresse.",
+        "locationRequired": "Position introuvable. Cliquez sur la carte pour placer un repère.",
+        "network": "Connexion impossible. Réessayez plus tard."
+      }
+    },
+    "map": {
+      "detectAria": "Détecter ma position",
+      "locating": "Localisation…",
+      "locate": "Ma position",
+      "helper": "Cliquez sur la carte ou faites glisser le repère pour ajuster la position.",
+      "locatingMobile": "Détection de votre position en cours… (jusqu'à 20 s sur mobile)",
+      "retry": "Réessayer",
+      "errors": {
+        "denied": "Vous avez refusé la géolocalisation. Cliquez sur la carte pour placer un repère.",
+        "unavailable": "Position indisponible. Vérifiez votre signal GPS ou cliquez sur la carte.",
+        "timeout": "Détection trop longue. Cliquez sur la carte pour placer le repère manuellement.",
+        "unsupported": "Géolocalisation non supportée par ce navigateur. Cliquez sur la carte."
+      }
+    },
+    "photo": {
+      "alt": "Photo {{n}}",
+      "removeAria": "Supprimer cette photo",
+      "preparing": "Préparation…",
+      "addAnother": "Ajouter une autre photo",
+      "errors": {
+        "unsupported": "Format non supporté : {{name}}",
+        "processFailed": "Échec du traitement de la photo."
+      }
     },
     "success": {
       "title": "Signalement bien reçu",

@@ -46,10 +46,13 @@ function avatarColor(name: string) {
   return colors[h % colors.length]
 }
 
-function timeAgo(iso: string) {
-  const diff = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
-  if (diff < 60) return `il y a ${diff} min`
-  return `il y a ${Math.floor(diff / 60)}h ${diff % 60}min`
+function useTimeAgo() {
+  const { t } = useTranslation()
+  return (iso: string) => {
+    const diff = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
+    if (diff < 60) return t('common.timeAgo.minutes', { count: diff })
+    return t('common.timeAgo.hours', { count: Math.floor(diff / 60) })
+  }
 }
 
 type Filter = 'all' | TeamStatus
@@ -152,6 +155,7 @@ export function Teams() {
 
 function TeamCard({ team }: { team: FieldTeam }) {
   const { t } = useTranslation()
+  const timeAgo = useTimeAgo()
   const tone = STATUS_TONE[team.status]
   return (
     <article className="bg-white border border-gray-200 rounded-md overflow-hidden flex flex-col">
@@ -182,7 +186,7 @@ function TeamCard({ team }: { team: FieldTeam }) {
           </p>
         </div>
         <button
-          aria-label="Plus"
+          aria-label={t('dashboard.teams.card.moreActions')}
           className="size-8 rounded-md hover:bg-gray-100 grid place-items-center text-gray-500"
         >
           <MoreHorizontal className="size-4" />
@@ -211,7 +215,7 @@ function TeamCard({ team }: { team: FieldTeam }) {
               {m.role === 'lead' && (
                 <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
                   <Crown className="size-3" />
-                  Chef
+                  {t('dashboard.teams.card.lead')}
                 </span>
               )}
             </li>
@@ -240,12 +244,15 @@ function TeamCard({ team }: { team: FieldTeam }) {
             {team.currentMission.address}
           </p>
           <p className="text-[11px] text-orange-700 mt-0.5 inline-flex items-center gap-1">
-            <Clock className="size-3" /> Démarrée {timeAgo(team.currentMission.startedAt)}
+            <Clock className="size-3" />{' '}
+            {t('dashboard.teams.card.startedAt', {
+              when: timeAgo(team.currentMission.startedAt),
+            })}
           </p>
         </div>
       ) : (
         <div className="bg-gray-50 px-5 py-3 text-xs text-gray-500">
-          {team.status === 'off' ? 'En pause — prochain shift demain' : 'Aucune mission en cours'}
+          {team.status === 'off' ? t('dashboard.teams.card.off') : t('dashboard.teams.card.idle')}
         </div>
       )}
 

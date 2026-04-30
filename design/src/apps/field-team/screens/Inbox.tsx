@@ -22,11 +22,14 @@ const STATUS_TONE: Record<MissionStatus, { dot: string; label: string }> = {
   completed: { dot: 'bg-emerald-500', label: 'completed' },
 }
 
-function timeAgo(iso: string) {
-  const diff = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
-  if (diff < 1) return "à l'instant"
-  if (diff < 60) return `il y a ${diff} min`
-  return `il y a ${Math.floor(diff / 60)}h`
+function useTimeAgo() {
+  const { t } = useTranslation()
+  return (iso: string) => {
+    const diff = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
+    if (diff < 1) return t('common.timeAgo.justNow')
+    if (diff < 60) return t('common.timeAgo.minutes', { count: diff })
+    return t('common.timeAgo.hours', { count: Math.floor(diff / 60) })
+  }
 }
 
 type Filter = 'all' | 'urgent' | 'enRoute'
@@ -47,7 +50,8 @@ export function Inbox() {
         if (!cancelled) setMissions(adaptMissions(r.missions))
       })
       .catch((e) => {
-        if (!cancelled) setError(e instanceof ApiError ? e.message : 'Connexion impossible.')
+        if (!cancelled)
+          setError(e instanceof ApiError ? e.message : t('fieldTeam.mission.errors.network'))
       })
     return () => {
       cancelled = true
@@ -158,6 +162,7 @@ function MissionCard({
   chevron: React.ReactNode
   t: ReturnType<typeof useTranslation>['t']
 }) {
+  const timeAgo = useTimeAgo()
   const statusTone = STATUS_TONE[mission.status]
   return (
     <Link

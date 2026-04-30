@@ -89,7 +89,7 @@ export function MissionDetail() {
         const all = [...active.missions, ...completed.missions]
         const apiRow = all.find((m) => m.id === id)
         if (!apiRow) {
-          setLoadError('Mission introuvable.')
+          setLoadError(t('fieldTeam.mission.errors.notFound'))
           return
         }
         const m = adaptMission(apiRow)
@@ -98,7 +98,8 @@ export function MissionDetail() {
         if (m.outcome) setOutcome(m.outcome)
       })
       .catch((e) => {
-        if (!cancelled) setLoadError(e instanceof ApiError ? e.message : 'Connexion impossible.')
+        if (!cancelled)
+          setLoadError(e instanceof ApiError ? e.message : t('fieldTeam.mission.errors.network'))
       })
     return () => {
       cancelled = true
@@ -145,7 +146,7 @@ export function MissionDetail() {
       )
       return updated
     } catch (e) {
-      setActionError(e instanceof ApiError ? e.message : 'Connexion impossible.')
+      setActionError(e instanceof ApiError ? e.message : t('fieldTeam.mission.errors.network'))
       throw e
     } finally {
       setSubmitting(false)
@@ -191,7 +192,7 @@ export function MissionDetail() {
       const url = await fileToResizedDataUrl(file)
       setPhotoDataUrl(url)
     } catch {
-      setActionError('Impossible de lire la photo. Réessayez.')
+      setActionError(t('fieldTeam.mission.errors.photoFailed'))
     }
   }
 
@@ -207,7 +208,7 @@ export function MissionDetail() {
           className="mt-4 inline-flex items-center gap-1 text-sm text-olive-700 font-semibold"
         >
           <Back className="size-4" />
-          Retour
+          {t('common.back')}
         </Link>
       </div>
     )
@@ -276,7 +277,7 @@ export function MissionDetail() {
         <Fact icon={MapPin} label={t('fieldTeam.mission.zone')}>
           {mission.zone}
         </Fact>
-        <Fact icon={Clock} label="Reçu">
+        <Fact icon={Clock} label={t('fieldTeam.mission.receivedShort')}>
           <span className="font-mono">
             {new Date(mission.receivedAt).toLocaleTimeString('fr-FR', {
               hour: '2-digit',
@@ -294,7 +295,7 @@ export function MissionDetail() {
         <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-2">
           {t('fieldTeam.mission.citizenComment')}
         </p>
-        <blockquote className="bg-gray-50 border-s-4 border-olive-500 rounded-r-md p-3 text-[13px] italic text-gray-800 leading-relaxed">
+        <blockquote className="bg-gray-50 border-s-4 border-olive-500 rounded-e-md p-3 text-[13px] italic text-gray-800 leading-relaxed">
           « {mission.citizenComment} »
         </blockquote>
       </div>
@@ -437,7 +438,7 @@ function ActionPanel({
   if (stage === 'enRoute') {
     return (
       <div className="px-5 py-4 bg-white space-y-3">
-        <Banner tone="active" icon={Truck} text="En route — bonne mission." />
+        <Banner tone="active" icon={Truck} text={t('fieldTeam.mission.banner.enRoute')} />
         <button
           onClick={onArrive}
           disabled={submitting}
@@ -453,7 +454,7 @@ function ActionPanel({
   if (stage === 'onSite') {
     return (
       <div className="px-5 py-4 bg-white space-y-3">
-        <Banner tone="alert" icon={MapPin} text="Vous êtes sur place." />
+        <Banner tone="alert" icon={MapPin} text={t('fieldTeam.mission.banner.onSite')} />
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={onImpossible}
@@ -483,7 +484,11 @@ function ActionPanel({
       <Banner
         tone={isImpossible ? 'muted' : 'success'}
         icon={isImpossible ? XCircle : CheckCircle2}
-        text={isImpossible ? 'Marqué comme impossible.' : 'Capture réussie.'}
+        text={t(
+          isImpossible
+            ? 'fieldTeam.mission.banner.impossible'
+            : 'fieldTeam.mission.banner.captured',
+        )}
       />
 
       {/* Photo */}
@@ -501,7 +506,7 @@ function ActionPanel({
               type="button"
               onClick={() => onPhoto(null)}
               className="absolute top-2 end-2 inline-flex items-center justify-center size-7 rounded-full bg-white/95 border border-gray-200 text-gray-700 shadow"
-              aria-label="Retirer la photo"
+              aria-label={t('fieldTeam.mission.photoActions.removeAria')}
             >
               <XCircle className="size-4" />
             </button>
@@ -509,7 +514,9 @@ function ActionPanel({
         ) : (
           <label className="mt-2 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-300 active:border-red-500 rounded-md py-8 cursor-pointer text-gray-500 active:text-red-600 bg-gray-50">
             <Camera className="size-7" />
-            <span className="text-sm font-semibold">Prendre la photo</span>
+            <span className="text-sm font-semibold">
+              {t('fieldTeam.mission.photoActions.takeButton')}
+            </span>
             <input
               type="file"
               accept="image/*"

@@ -13,6 +13,26 @@
     "confirm": "تأكيد",
     "submit": "إرسال",
     "save": "حفظ",
+    "timeAgo": {
+      "justNow": "الآن",
+      "seconds": "منذ {{count}} ث",
+      "minutes": "منذ {{count}} د",
+      "hours": "منذ {{count}} س",
+      "days": "منذ {{count}} ي"
+    },
+    "errors": {
+      "network": "تعذّر الاتصال. حاول مجدّدا.",
+      "unknown": "حدث خطأ ما."
+    },
+    "actions": {
+      "refresh": "تحديث",
+      "openMenu": "فتح القائمة",
+      "closeMenu": "إغلاق القائمة",
+      "previewHub": "معاينة التصميم",
+      "edit": "تعديل",
+      "more": "المزيد"
+    },
+    "anonymous": "مجهول",
     "loading": "جار التحميل…",
     "error": "حدث خطأ",
     "retry": "إعادة المحاولة",
@@ -28,7 +48,15 @@
       "password": "كلمة المرور",
       "submit": "تسجيل الدخول",
       "forgot": "نسيت كلمة المرور؟",
-      "back": "العودة إلى الموقع العمومي"
+      "back": "العودة إلى الموقع العمومي",
+      "signingIn": "جاري الاتصال…",
+      "brandHeading": "منصة لتدبير بلاغات المواطنين.",
+      "brandLead": "الاستلام، المصادقة، الإسناد إلى الفرق الميدانية، ومتابعة التدخّلات — فضاء واحد لموظفي الجماعة.",
+      "legalNotice": "الوصول مقتصر على الموظفين المخوّلين. كل اتصال يُسجَّل.",
+      "copyrightLine": "© {{year}} مجموعة الجماعات الترابية للوقاية و حفظ الصحة — ورزازات",
+      "errors": {
+        "network": "تعذّر الاتصال. حاول مجدّدا."
+      }
     },
     "nav": {
       "overview": "نظرة عامة",
@@ -45,7 +73,13 @@
     },
     "topbar": {
       "search": "ابحث عن بلاغ، حي، أو فريق…",
-      "notifications": "الإشعارات"
+      "notifications": "الإشعارات",
+      "openMenu": "فتح القائمة"
+    },
+    "sidebar": {
+      "tagline": "الحيوانات الضالة",
+      "adminSection": "الإدارة",
+      "closeMenu": "إغلاق القائمة"
     },
     "overview": {
       "title": "نظرة عامة",
@@ -59,7 +93,27 @@
       "triageQueue": "صف الفرز",
       "triageQueueAction": "عرض الكل",
       "hotZones": "المناطق الأكثر نشاطًا",
-      "recentActivity": "النشاط الأخير"
+      "recentActivity": "النشاط الأخير",
+      "pendingHeader": "{{count}} في الانتظار",
+      "empty": {
+        "triage": "لا توجد بلاغات في الانتظار — أحسنت!",
+        "activityWeek": "لا يوجد نشاط هذا الأسبوع.",
+        "activityRecent": "لا يوجد نشاط حديث."
+      },
+      "activity": {
+        "report": {
+          "submit": "{{who}} قدّم بلاغًا جديدًا",
+          "approve": "{{who}} صادق",
+          "reject": "{{who}} رفض",
+          "assign": "{{who}} أسند المهمة"
+        },
+        "auth": {
+          "login": "{{who}} سجّل الدخول",
+          "loginFail": "{{who}}: فشل تسجيل الدخول",
+          "loginBlocked": "{{who}}: تم حظر تسجيل الدخول",
+          "logout": "{{who}} سجّل الخروج"
+        }
+      }
     },
     "users": {
       "title": "المستخدمون",
@@ -98,13 +152,22 @@
         "inactive": "غير نشط",
         "pending": "قيد الانتظار"
       },
-      "noResults": "لا يوجد مستخدم مطابق للفلاتر."
+      "noResults": "لا يوجد مستخدم مطابق للفلاتر.",
+      "actions": {
+        "edit": "تعديل",
+        "more": "المزيد"
+      }
     },
     "settings": {
       "title": "الإعدادات",
       "subtitle": "ضبط المنصة والقواعد المهنية",
       "saveAll": "حفظ",
       "saved": "تم حفظ التعديلات",
+      "savedShort": "تم الحفظ",
+      "errors": {
+        "loadFailed": "تعذّر الاتصال.",
+        "saveFailed": "فشل الحفظ."
+      },
       "general": {
         "title": "معلومات عامة",
         "subtitle": "هوية الجماعة ومعطيات الاتصال بالخدمة",
@@ -206,7 +269,11 @@
       "medium": "متوسطة",
       "high": "مرتفعة",
       "critical": "حرجة",
-      "noShow": "لا توجد منطقة حرجة خلال الفترة."
+      "noShow": "لا توجد منطقة حرجة خلال الفترة.",
+      "recenter": "إعادة التمركز",
+      "layersAria": "الطبقات",
+      "coordinates": "ورزازات · 30.92°ش، 6.91°غ · تكبير 13",
+      "pointsCount": "{{count}} نقاط · تكبير 13"
     },
     "stats": {
       "title": "الإحصائيات",
@@ -240,7 +307,13 @@
         "avgResponse": "متوسط الزمن"
       },
       "peakDay": "اليوم الأكثر نشاطًا",
-      "of": "من"
+      "of": "من",
+      "fasterPercent": "{{percent}}% أسرع",
+      "minutes": "{{value}} د",
+      "reportsCount": "{{count}} بلاغات",
+      "totalLabel": "المجموع",
+      "topZonesSubtitle": "الأحياء الأكثر نشاطًا (الأعلى {{count}})",
+      "vsPreviousShort": "مقارنة بالفترة السابقة"
     },
     "teams": {
       "title": "الفرق الميدانية",
@@ -268,7 +341,12 @@
         "currentMission": "المهمة الحالية",
         "viewDetail": "عرض التفاصيل",
         "edit": "تعديل",
-        "noTeams": "لا توجد فرق مطابقة للفلاتر."
+        "noTeams": "لا توجد فرق مطابقة للفلاتر.",
+        "lead": "قائد",
+        "startedAt": "بدأت {{when}}",
+        "moreActions": "المزيد",
+        "off": "في استراحة — التحوّل القادم غدا",
+        "idle": "لا توجد مهمة جارية"
       }
     },
     "map": {
@@ -286,7 +364,14 @@
       "zoomIn": "تكبير",
       "zoomOut": "تصغير",
       "layers": "الطبقات",
-      "viewOSM": "عرض على OpenStreetMap"
+      "viewOSM": "عرض على OpenStreetMap",
+      "empty": "لا توجد علامات لهذه الفلاتر.",
+      "onMap": "على الخريطة",
+      "pinsCount": "{{count}} علامات",
+      "urgentBadge": "● عاجل",
+      "errors": {
+        "loadFailed": "تعذّر الاتصال."
+      }
     },
     "reports": {
       "title": "البلاغات",
@@ -310,7 +395,12 @@
       "showing": "{{from}}–{{to}} من {{total}}",
       "previous": "السابق",
       "next": "التالي",
-      "noResults": "لا يوجد بلاغ مطابق للفلاتر."
+      "noResults": "لا يوجد بلاغ مطابق للفلاتر.",
+      "urgentBadge": "● عاجل",
+      "exportSoon": "قريبًا",
+      "errors": {
+        "loadFailed": "تعذّر الاتصال."
+      }
     },
     "detail": {
       "close": "إغلاق",
@@ -342,6 +432,57 @@
         "inProgress": "وُسم قيد المعالجة من طرف {{team}}",
         "resolved": "تم الإغلاق — قبض ناجح",
         "rejected": "رُفض من طرف {{agent}}"
+      },
+      "timeline": {
+        "submit": "تم استلام البلاغ من المواطن",
+        "approve": "تمت المصادقة",
+        "rejectWithReason": "رُفض — {{reason}}",
+        "reject": "رُفض",
+        "assignToTeam": "أُسند إلى {{team}}",
+        "assign": "أُسند",
+        "enRoute": "الفريق في الطريق",
+        "onSite": "وصل الفريق إلى المكان",
+        "captured": "تم القبض بنجاح",
+        "impossible": "تعذّر القبض"
+      },
+      "section": {
+        "mission": "المهمة",
+        "rejectReason": "سبب الرفض",
+        "team": "الفريق",
+        "missionStatus": "حالة المهمة",
+        "agentNote": "ملاحظة الموظف",
+        "fieldNote": "ملاحظة الميدان",
+        "noEvents": "لا يوجد حدث.",
+        "noPhoto": "لا توجد صورة"
+      },
+      "rejectForm": {
+        "heading": "سبب الرفض",
+        "placeholder": "تكرار لـ OZN-… / خارج النطاق / إزعاج / محتوى غير لائق…",
+        "cancel": "إلغاء",
+        "submit": "تأكيد الرفض"
+      },
+      "assignForm": {
+        "heading": "الفريق",
+        "loadingTeams": "جاري تحميل الفرق…",
+        "noTeams": "لا توجد فرق نشطة متاحة.",
+        "teamPlaceholder": "— اختر فريقًا —",
+        "teamMembers": "({{count}} أعضاء)",
+        "noteLabel": "ملاحظة للفريق (اختياري)",
+        "notePlaceholder": "تفاصيل عن الحيوان، الوصول، التوقيت…",
+        "cancel": "إلغاء",
+        "submit": "تأكيد الإسناد"
+      },
+      "statusMessage": {
+        "rejected": "تم رفض هذا البلاغ.",
+        "processing": "هذا البلاغ قيد المعالجة."
+      },
+      "errors": {
+        "loadFailed": "تعذّر الاتصال.",
+        "approveFailed": "فشلت المصادقة.",
+        "rejectFailed": "فشل الرفض.",
+        "assignFailed": "فشل الإسناد.",
+        "reasonRequired": "يرجى تحديد سبب الرفض.",
+        "teamRequired": "يرجى اختيار فريق."
       }
     },
     "triage": {
@@ -356,7 +497,35 @@
         "received": "تم الاستلام",
         "approve": "مصادقة",
         "reject": "رفض",
-        "viewDetail": "عرض التفاصيل"
+        "viewDetail": "عرض التفاصيل",
+        "approveAndAssign": "المصادقة والإسناد",
+        "urgentBadge": "عاجل",
+        "queueCount": "{{count}} في الصف"
+      },
+      "rejectForm": {
+        "heading": "سبب الرفض",
+        "placeholder": "تكرار لـ OZN-... / خارج النطاق / إزعاج / محتوى غير لائق…",
+        "cancel": "إلغاء",
+        "submit": "تأكيد الرفض"
+      },
+      "assignForm": {
+        "heading": "الإسناد إلى فريق",
+        "loadingTeams": "جاري تحميل الفرق…",
+        "noTeams": "لا توجد فرق نشطة متاحة. يمكنك المصادقة دون إسناد.",
+        "teamPlaceholder": "— اختر فريقًا —",
+        "teamMembers": "({{count}} أعضاء)",
+        "noteLabel": "ملاحظة للفريق (اختياري)",
+        "notePlaceholder": "تفاصيل عن الحيوان، الوصول، التوقيت…",
+        "cancel": "إلغاء",
+        "submit": "المصادقة والإسناد",
+        "submitOnly": "أو المصادقة دون إسناد لاحقًا"
+      },
+      "errors": {
+        "rejectReasonRequired": "يرجى تحديد سبب الرفض.",
+        "teamRequired": "يرجى اختيار فريق (أو استخدم « المصادقة دون إسناد »).",
+        "rejectFailed": "فشل الرفض.",
+        "approveFailed": "فشلت المصادقة.",
+        "submitFailed": "فشل."
       },
       "empty": "لا توجد بلاغات في الانتظار — أحسنت."
     },
@@ -383,13 +552,19 @@
       "password": "رمز الموظف",
       "submit": "تسجيل الدخول",
       "back": "العودة إلى المعاينة",
-      "team": "الفريق"
+      "team": "الفريق",
+      "platformLine": "منصة · م.ج.ت ورزازات",
+      "errors": {
+        "wrongRole": "هذا الحساب لا ينتمي إلى فريق ميداني. استعمل لوحة التحكم بدلًا من ذلك.",
+        "network": "تعذّر الاتصال. حاول مجدّدا."
+      }
     },
     "shell": {
       "online": "متصل",
       "offline": "غير متصل",
       "agentLabel": "الموظف",
-      "teamLabel": "الفريق"
+      "teamLabel": "الفريق",
+      "teamFallback": "الفريق الميداني"
     },
     "tabs": {
       "inbox": "المهام",
@@ -423,7 +598,23 @@
       "category": "نوع الحالة",
       "animals": "العدد",
       "received": "استلمت في {{date}}",
-      "back": "العودة إلى المهام"
+      "receivedShort": "تم الاستلام",
+      "back": "العودة إلى المهام",
+      "errors": {
+        "notFound": "لم يتم العثور على المهمة.",
+        "network": "تعذّر الاتصال.",
+        "photoFailed": "تعذّرت قراءة الصورة. أعد المحاولة."
+      },
+      "banner": {
+        "enRoute": "في الطريق — مهمة موفقة.",
+        "onSite": "أنت في الموقع.",
+        "captured": "تم القبض بنجاح.",
+        "impossible": "وُسم كغير ممكن."
+      },
+      "photoActions": {
+        "removeAria": "إزالة الصورة",
+        "takeButton": "التقط الصورة"
+      }
     },
     "actions": {
       "depart": "أنا منطلق",
@@ -468,7 +659,8 @@
       "language": "اللغة",
       "notifications": "إشعارات push",
       "logout": "تسجيل الخروج",
-      "version": "الإصدار 0.1 — معاينة التصميم"
+      "version": "الإصدار 0.1 — معاينة التصميم",
+      "toggleNotificationsAria": "تفعيل/تعطيل الإشعارات"
     },
     "complete": {
       "title": "تم إنهاء المهمة",
@@ -591,7 +783,39 @@
       },
       "submit": "إرسال البلاغ",
       "next": "متابعة",
-      "back": "السابق"
+      "back": "السابق",
+      "submitting": "جاري الإرسال…",
+      "fields_locationOnMap": "الموقع على الخريطة",
+      "errors": {
+        "descRequired": "يرجى وصف الحالة.",
+        "addressRequired": "يرجى تحديد العنوان.",
+        "locationRequired": "تعذّر تحديد الموقع. اضغط على الخريطة لوضع علامة.",
+        "network": "تعذّر الاتصال. حاول لاحقًا."
+      }
+    },
+    "map": {
+      "detectAria": "تحديد موقعي",
+      "locating": "جاري التحديد…",
+      "locate": "موقعي",
+      "helper": "اضغط على الخريطة أو اسحب العلامة لضبط الموقع.",
+      "locatingMobile": "جاري تحديد موقعك… (قد يستغرق ذلك حتى 20 ث على الهاتف)",
+      "retry": "إعادة المحاولة",
+      "errors": {
+        "denied": "رفضت تحديد الموقع. اضغط على الخريطة لوضع علامة.",
+        "unavailable": "الموقع غير متاح. تحقّق من إشارة GPS أو اضغط على الخريطة.",
+        "timeout": "استغرق التحديد وقتا طويلا. اضغط على الخريطة لوضع العلامة يدويا.",
+        "unsupported": "تحديد الموقع غير مدعوم في هذا المتصفّح. اضغط على الخريطة."
+      }
+    },
+    "photo": {
+      "alt": "صورة {{n}}",
+      "removeAria": "إزالة هذه الصورة",
+      "preparing": "تحضير…",
+      "addAnother": "إضافة صورة أخرى",
+      "errors": {
+        "unsupported": "صيغة غير مدعومة: {{name}}",
+        "processFailed": "فشلت معالجة الصورة."
+      }
     },
     "success": {
       "title": "تم استلام البلاغ",

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -40,6 +41,7 @@ type Props = {
 }
 
 export function MapPicker({ value, onChange, autoLocate = true }: Props) {
+  const { t } = useTranslation()
   const center = value ?? OUARZAZATE
   const [geo, setGeo] = useState<GeoState>({ kind: 'idle' })
 
@@ -116,14 +118,14 @@ export function MapPicker({ value, onChange, autoLocate = true }: Props) {
         onClick={locate}
         disabled={geo.kind === 'locating'}
         className="absolute top-2 end-2 z-[400] inline-flex items-center gap-1.5 bg-white border border-gray-300 rounded-md text-xs font-semibold text-gray-800 px-3 py-1.5 shadow-sm hover:bg-gray-50 disabled:opacity-50"
-        aria-label="Détecter ma position"
+        aria-label={t('citizen.map.detectAria')}
       >
         {geo.kind === 'locating' ? (
           <Loader2 className="size-3.5 animate-spin" />
         ) : (
           <Crosshair className="size-3.5" />
         )}
-        {geo.kind === 'locating' ? 'Localisation…' : 'Ma position'}
+        {geo.kind === 'locating' ? t('citizen.map.locating') : t('citizen.map.locate')}
       </button>
 
       {value && (
@@ -138,10 +140,11 @@ export function MapPicker({ value, onChange, autoLocate = true }: Props) {
 }
 
 function GeoFeedback({ state, onRetry }: { state: GeoState; onRetry: () => void }) {
+  const { t } = useTranslation()
   if (state.kind === 'ok' || state.kind === 'idle') {
     return (
       <p className="text-[11px] text-gray-500 px-3 py-2 bg-gray-50 border-t border-gray-200">
-        Cliquez sur la carte ou faites glisser le repère pour ajuster la position.
+        {t('citizen.map.helper')}
       </p>
     )
   }
@@ -149,32 +152,28 @@ function GeoFeedback({ state, onRetry }: { state: GeoState; onRetry: () => void 
     return (
       <p className="text-[11px] text-gray-700 px-3 py-2 bg-blue-50 border-t border-blue-200 inline-flex items-center gap-1.5 w-full">
         <Loader2 className="size-3.5 animate-spin" />
-        Détection de votre position en cours… (jusqu’à 20 s sur mobile)
+        {t('citizen.map.locatingMobile')}
       </p>
     )
   }
-  const messages: Record<Exclude<GeoState['kind'], 'ok' | 'idle' | 'locating'>, string> = {
-    denied:
-      'Vous avez refusé la géolocalisation. Activez-la dans les réglages du navigateur, ou cliquez sur la carte pour placer le repère manuellement.',
-    unavailable:
-      'GPS indisponible. Vérifiez que la localisation est activée sur votre téléphone, ou cliquez sur la carte pour placer le repère manuellement.',
-    timeout:
-      'La détection a pris trop de temps. Sortez à l’extérieur pour un meilleur signal, réessayez, ou placez le repère manuellement.',
-    unsupported:
-      'Votre navigateur ne supporte pas la géolocalisation. Cliquez sur la carte pour placer le repère.',
+  const errorKey: Record<Exclude<GeoState['kind'], 'ok' | 'idle' | 'locating'>, string> = {
+    denied: 'citizen.map.errors.denied',
+    unavailable: 'citizen.map.errors.unavailable',
+    timeout: 'citizen.map.errors.timeout',
+    unsupported: 'citizen.map.errors.unsupported',
   }
   return (
     <div className="text-[11px] px-3 py-2 bg-amber-50 border-t border-amber-200 flex items-start gap-2">
       <AlertCircle className="size-3.5 text-amber-700 mt-0.5 shrink-0" />
       <div className="flex-1">
-        <p className="text-amber-900">{messages[state.kind]}</p>
+        <p className="text-amber-900">{t(errorKey[state.kind])}</p>
         {state.kind !== 'unsupported' && (
           <button
             type="button"
             onClick={onRetry}
             className="mt-1 text-amber-900 underline font-semibold"
           >
-            Réessayer
+            {t('citizen.map.retry')}
           </button>
         )}
       </div>

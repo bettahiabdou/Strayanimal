@@ -34,7 +34,8 @@ export function History() {
         if (!cancelled) setMissions(adaptMissions(r.missions))
       })
       .catch((e) => {
-        if (!cancelled) setError(e instanceof ApiError ? e.message : 'Connexion impossible.')
+        if (!cancelled)
+          setError(e instanceof ApiError ? e.message : t('fieldTeam.mission.errors.network'))
       })
     return () => {
       cancelled = true

@@ -56,7 +56,10 @@ export function Settings() {
         setOriginal(v)
       })
       .catch((e) => {
-        if (!cancelled) setLoadError(e instanceof ApiError ? e.message : 'Connexion impossible.')
+        if (!cancelled)
+          setLoadError(
+            e instanceof ApiError ? e.message : t('dashboard.settings.errors.loadFailed'),
+          )
       })
     return () => {
       cancelled = true
@@ -97,7 +100,7 @@ export function Settings() {
       setValues(v)
       setSavedAt(new Date())
     } catch (e) {
-      setSaveError(e instanceof ApiError ? e.message : 'Échec de la sauvegarde.')
+      setSaveError(e instanceof ApiError ? e.message : t('dashboard.settings.errors.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -115,7 +118,7 @@ export function Settings() {
         <div className="flex items-center gap-3">
           {savedAt && !dirty && (
             <span className="text-xs text-emerald-700 inline-flex items-center gap-1">
-              <Check className="size-3.5" /> Enregistré
+              <Check className="size-3.5" /> {t('dashboard.settings.savedShort')}
             </span>
           )}
           <button

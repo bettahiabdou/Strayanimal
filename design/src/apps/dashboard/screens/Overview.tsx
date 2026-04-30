@@ -22,13 +22,17 @@ const CATEGORY_TONE: Record<ReportCategory, string> = {
   stray: 'bg-yellow-100 text-yellow-700 border-yellow-200',
 }
 
-function timeAgo(iso: string) {
-  const diffMin = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
-  if (diffMin < 1) return "à l'instant"
-  if (diffMin < 60) return `il y a ${diffMin} min`
-  const h = Math.floor(diffMin / 60)
-  if (h < 24) return `il y a ${h} h`
-  return `il y a ${Math.floor(h / 24)} j`
+/** Localised "il y a X min/h/j" — keys live under common.timeAgo. */
+function useTimeAgo() {
+  const { t } = useTranslation()
+  return (iso: string) => {
+    const diffMin = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
+    if (diffMin < 1) return t('common.timeAgo.justNow')
+    if (diffMin < 60) return t('common.timeAgo.minutes', { count: diffMin })
+    const h = Math.floor(diffMin / 60)
+    if (h < 24) return t('common.timeAgo.hours', { count: h })
+    return t('common.timeAgo.days', { count: Math.floor(h / 24) })
+  }
 }
 
 function fmtMin(n: number | null) {
@@ -38,20 +42,25 @@ function fmtMin(n: number | null) {
   return h ? `${h}h ${String(m).padStart(2, '0')}` : `${m} min`
 }
 
-const ACTION_LABELS: Record<string, (target: string | null) => string> = {
-  'report.submit': (t) => `a soumis un nouveau signalement (${t ?? '?'})`,
-  'report.approve': (t) => `a validé ${t ?? 'un signalement'}`,
-  'report.reject': (t) => `a rejeté ${t ?? 'un signalement'}`,
-  'report.assign': (t) => `a assigné ${t ?? 'un signalement'}`,
-  'login.success': () => `s'est connecté(e)`,
-  'login.failed': () => `connexion échouée`,
-  'login.blocked': () => `connexion bloquée`,
-  logout: () => `s'est déconnecté(e)`,
+/**
+ * AuditEvent.action → i18n key under dashboard.overview.activity.*.
+ * Returns null for unknown actions (caller falls back to the raw action).
+ */
+const ACTION_TO_KEY: Record<string, string> = {
+  'report.submit': 'dashboard.overview.activity.report.submit',
+  'report.approve': 'dashboard.overview.activity.report.approve',
+  'report.reject': 'dashboard.overview.activity.report.reject',
+  'report.assign': 'dashboard.overview.activity.report.assign',
+  'login.success': 'dashboard.overview.activity.auth.login',
+  'login.failed': 'dashboard.overview.activity.auth.loginFail',
+  'login.blocked': 'dashboard.overview.activity.auth.loginBlocked',
+  logout: 'dashboard.overview.activity.auth.logout',
 }
 
 export function Overview() {
-  const { t } = useTranslation()
-  const today = new Date().toLocaleDateString('fr-FR', {
+  const { t, i18n } = useTranslation()
+  const timeAgo = useTimeAgo()
+  const today = new Date().toLocaleDateString(i18n.language === 'ar' ? 'ar-MA' : 'fr-FR', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -72,7 +81,7 @@ export function Overview() {
       })
       .catch((e) => {
         if (cancelled) return
-        setError(e instanceof ApiError ? e.message : 'Connexion impossible.')
+        setError(e instanceof ApiError ? e.message : t('common.errors.network'))
       })
     return () => {
       cancelled = true
@@ -148,9 +157,7 @@ export function Overview() {
             <div>
               <h2 className="font-bold text-gray-900">{t('dashboard.overview.triageQueue')}</h2>
               <p className="text-xs text-gray-500 mt-0.5">
-                {pending
-                  ? `${pending.length} signalement${pending.length > 1 ? 's' : ''} en attente`
-                  : '…'}
+                {pending ? t('dashboard.overview.pendingHeader', { count: pending.length }) : '…'}
               </p>
             </div>
             <Link
@@ -167,7 +174,7 @@ export function Overview() {
             </div>
           ) : pending.length === 0 ? (
             <p className="p-10 text-center text-sm text-gray-500">
-              Aucun signalement en attente — bon travail.
+              {t('dashboard.overview.empty.triage')}
             </p>
           ) : (
             <ul className="divide-y divide-gray-200">
@@ -219,7 +226,9 @@ export function Overview() {
               <Loader2 className="size-5 animate-spin" />
             </div>
           ) : stats.hotZones.length === 0 ? (
-            <p className="p-10 text-center text-sm text-gray-500">Aucune activité cette semaine.</p>
+            <p className="p-10 text-center text-sm text-gray-500">
+              {t('dashboard.overview.empty.activityWeek')}
+            </p>
           ) : (
             <ul className="divide-y divide-gray-200">
               {stats.hotZones.map((z, i) => (
@@ -246,14 +255,16 @@ export function Overview() {
             <Loader2 className="size-5 animate-spin" />
           </div>
         ) : stats.recentActivity.length === 0 ? (
-          <p className="p-10 text-center text-sm text-gray-500">Aucune activité récente.</p>
+          <p className="p-10 text-center text-sm text-gray-500">
+            {t('dashboard.overview.empty.activityRecent')}
+          </p>
         ) : (
           <ul className="divide-y divide-gray-200">
             {stats.recentActivity.map((a) => {
-              const time = new Date(a.at).toLocaleTimeString('fr-FR', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })
+              const time = new Date(a.at).toLocaleTimeString(
+                i18n.language === 'ar' ? 'ar-MA' : 'fr-FR',
+                { hour: '2-digit', minute: '2-digit' },
+              )
               const tone =
                 a.action === 'login.failed' || a.action === 'report.submit'
                   ? 'urgent'
@@ -262,8 +273,10 @@ export function Overview() {
                     : a.action === 'report.reject' || a.action === 'logout'
                       ? 'muted'
                       : 'normal'
-              const labelFn = ACTION_LABELS[a.action]
-              const what = labelFn ? labelFn(a.target) : a.action
+              const key = ACTION_TO_KEY[a.action]
+              // The localised activity strings already include the user's name
+              // via {{who}}, plus the report ref where useful via {{target}}.
+              const what = key ? t(key, { who: a.who, target: a.target ?? '' }) : a.action
               return (
                 <li key={a.id} className="px-5 py-3 flex items-start gap-4 text-sm">
                   <span className="font-mono text-xs text-gray-400 w-12 shrink-0 mt-0.5">
@@ -278,9 +291,7 @@ export function Overview() {
                       tone === 'muted' && 'bg-gray-400',
                     )}
                   />
-                  <p className="text-gray-700 leading-snug">
-                    <strong className="text-gray-900 font-semibold">{a.who}</strong> {what}
-                  </p>
+                  <p className="text-gray-700 leading-snug">{what}</p>
                 </li>
               )
             })}
