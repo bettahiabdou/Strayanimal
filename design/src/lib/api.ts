@@ -45,6 +45,38 @@ export type LoginResponse = {
   accessToken: string
 }
 
+export type ReportCategory = 'AGGRESSIVE' | 'INJURED' | 'STRAY'
+export type AnimalType = 'DOG' | 'CAT' | 'OTHER'
+export type ReportStatus =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'ASSIGNED'
+  | 'IN_PROGRESS'
+  | 'RESOLVED'
+  | 'IMPOSSIBLE'
+  | 'REJECTED'
+
+export type SubmitReportInput = {
+  category: ReportCategory
+  animalType: AnimalType
+  animalCount: number
+  latitude: number
+  longitude: number
+  address: string
+  zone: string
+  comment: string
+  citizenName?: string
+  citizenPhone?: string
+  preferredLocale?: 'fr' | 'ar'
+}
+
+export type SubmittedReport = {
+  id: string
+  publicRef: string
+  status: ReportStatus
+  receivedAt: string
+}
+
 export class ApiError extends Error {
   status: number
   code: string
@@ -162,6 +194,14 @@ export const api = {
   /** Health (used by the preview hub if we want to display API status). */
   async health(): Promise<{ status: string; db: string; uptime: number }> {
     return request('GET', '/health')
+  },
+
+  /** Citizen anonymous submission. Public route — no auth needed. */
+  async submitReport(input: SubmitReportInput): Promise<SubmittedReport> {
+    const { report } = await request<{ report: SubmittedReport }>('POST', '/reports', input, {
+      skipAuthRefresh: true,
+    })
+    return report
   },
 }
 

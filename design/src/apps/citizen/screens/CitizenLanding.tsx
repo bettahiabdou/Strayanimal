@@ -11,10 +11,12 @@ import {
   MapPin,
   CheckCircle2,
   AlertCircle,
+  Loader2,
 } from 'lucide-react'
 import { LanguageSwitcher } from '@/design-system/LanguageSwitcher'
 import { CommuneLogo } from '@/design-system/CommuneLogo'
 import { cn } from '@/design-system/cn'
+import { api, ApiError } from '@/lib/api'
 
 const HOTLINE_DISPLAY = '0524 88 24 87'
 const HOTLINE_TEL = 'tel:+212524882487'
@@ -357,10 +359,95 @@ function FormSection() {
 
 const TOTAL_STEPS = 2
 
+type Category = 'AGGRESSIVE' | 'INJURED' | 'STRAY'
+type AnimalType = 'DOG' | 'CAT' | 'OTHER'
+type FormState = {
+  category: Category
+  animalType: AnimalType
+  animalCount: number
+  comment: string
+  address: string
+  contactName: string
+  contactPhone: string
+}
+
+const INITIAL: FormState = {
+  category: 'INJURED',
+  animalType: 'DOG',
+  animalCount: 1,
+  comment: '',
+  address: '',
+  contactName: '',
+  contactPhone: '',
+}
+
+const OUARZAZATE_FALLBACK = { latitude: 30.92, longitude: -6.91 }
+
+/** Browser geolocation with a graceful fallback to Ouarzazate centre. */
+async function getCoords(): Promise<{ latitude: number; longitude: number }> {
+  if (!('geolocation' in navigator)) return OUARZAZATE_FALLBACK
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+      () => resolve(OUARZAZATE_FALLBACK),
+      { timeout: 4000, enableHighAccuracy: false },
+    )
+  })
+}
+
 function ReportForm() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [step, setStep] = useState(1)
+  const [data, setData] = useState<FormState>(INITIAL)
   const [submitted, setSubmitted] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const update = <K extends keyof FormState>(k: K, v: FormState[K]) =>
+    setData((d) => ({ ...d, [k]: v }))
+
+  function reset() {
+    setSubmitted(null)
+    setData(INITIAL)
+    setStep(1)
+    setError(null)
+  }
+
+  async function onSubmit() {
+    if (!data.address.trim() || !data.comment.trim()) {
+      setError('Veuillez remplir l’adresse et la description.')
+      setStep(data.address.trim() ? 1 : 2)
+      return
+    }
+
+    setError(null)
+    setSubmitting(true)
+    try {
+      const coords = await getCoords()
+      const report = await api.submitReport({
+        category: data.category,
+        animalType: data.animalType,
+        animalCount: data.animalCount,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        address: data.address.trim(),
+        zone: data.address.trim().split(',')[0]?.trim() || data.address.trim(), // best-effort zone
+        comment: data.comment.trim(),
+        citizenName: data.contactName.trim() || undefined,
+        citizenPhone: data.contactPhone.trim() || undefined,
+        preferredLocale: i18n.language === 'ar' ? 'ar' : 'fr',
+      })
+      setSubmitted(report.publicRef)
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message)
+      } else {
+        setError('Connexion impossible. Réessayez plus tard.')
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   if (submitted) {
     return (
@@ -375,13 +462,7 @@ function ReportForm() {
           <span className="font-mono text-xl font-bold text-gray-900 mt-1">{submitted}</span>
         </div>
         <div className="mt-8">
-          <button
-            onClick={() => {
-              setSubmitted(null)
-              setStep(1)
-            }}
-            className="btn-square btn-square-outline"
-          >
+          <button onClick={reset} className="btn-square btn-square-outline">
             {t('citizen.success.newReport')}
           </button>
         </div>
@@ -406,7 +487,17 @@ function ReportForm() {
         </div>
       </div>
 
-      {step === 1 ? <Step1 /> : <Step2 />}
+      {step === 1 ? <Step1 data={data} update={update} /> : <Step2 data={data} update={update} />}
+
+      {error && (
+        <div
+          role="alert"
+          className="mt-6 flex items-start gap-2 bg-red-50 border border-red-200 text-red-800 rounded-md p-3 text-sm"
+        >
+          <AlertCircle className="size-4 mt-0.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
       <div className="mt-10 flex items-center justify-between gap-3 border-t border-gray-200 pt-6">
         {step > 1 ? (
@@ -426,15 +517,16 @@ function ReportForm() {
           </button>
         ) : (
           <button
-            onClick={() => {
-              const ref =
-                'OZN-' + String(Date.now()).slice(-4) + '-' + Math.floor(Math.random() * 90 + 10)
-              setSubmitted(ref)
-            }}
-            className="btn-square btn-square-red"
+            onClick={onSubmit}
+            disabled={submitting}
+            className="btn-square btn-square-red disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {t('citizen.form.submit')}
-            <CheckCircle2 className="size-4" />
+            {submitting ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="size-4" />
+            )}
+            {submitting ? 'Envoi…' : t('citizen.form.submit')}
           </button>
         )}
       </div>
@@ -442,53 +534,79 @@ function ReportForm() {
   )
 }
 
-function Step1() {
+type StepProps = {
+  data: FormState
+  update: <K extends keyof FormState>(k: K, v: FormState[K]) => void
+}
+
+function Step1({ data, update }: StepProps) {
   const { t } = useTranslation()
   return (
     <div className="space-y-6">
       <Field label={t('citizen.form.fields.category')}>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {(['categoryAggressive', 'categoryInjured', 'categoryStray'] as const).map((k, i) => (
+          {(
+            [
+              ['AGGRESSIVE', 'categoryAggressive'],
+              ['INJURED', 'categoryInjured'],
+              ['STRAY', 'categoryStray'],
+            ] as const
+          ).map(([value, i18nKey]) => (
             <RadioCard
-              key={k}
+              key={value}
               name="category"
-              value={k}
-              defaultChecked={i === 1}
-              label={t(`citizen.form.fields.${k}`)}
+              value={value}
+              checked={data.category === value}
+              onChange={() => update('category', value)}
+              label={t(`citizen.form.fields.${i18nKey}`)}
             />
           ))}
         </div>
       </Field>
       <div className="grid sm:grid-cols-2 gap-5">
         <Field label={t('citizen.form.fields.animalType')}>
-          <select className="select" defaultValue="dog">
-            <option value="dog">{t('citizen.form.fields.animalDog')}</option>
-            <option value="cat">{t('citizen.form.fields.animalCat')}</option>
-            <option value="other">{t('citizen.form.fields.animalOther')}</option>
+          <select
+            className="select"
+            value={data.animalType}
+            onChange={(e) => update('animalType', e.target.value as AnimalType)}
+          >
+            <option value="DOG">{t('citizen.form.fields.animalDog')}</option>
+            <option value="CAT">{t('citizen.form.fields.animalCat')}</option>
+            <option value="OTHER">{t('citizen.form.fields.animalOther')}</option>
           </select>
         </Field>
         <Field label={t('citizen.form.fields.animalCount')}>
-          <input className="input" type="number" min={1} defaultValue={1} />
+          <input
+            className="input"
+            type="number"
+            min={1}
+            value={data.animalCount}
+            onChange={(e) => update('animalCount', Math.max(1, Number(e.target.value) || 1))}
+          />
         </Field>
       </div>
       <Field label={t('citizen.form.fields.photo')} hint={t('citizen.form.fields.photoHint')}>
         <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-300 hover:border-red-500 rounded-lg py-10 cursor-pointer transition-colors text-gray-500 hover:text-red-600">
           <Upload className="size-7" />
           <span className="text-sm font-medium">{t('citizen.form.fields.photoUpload')}</span>
-          <input type="file" accept="image/*" className="sr-only" />
+          <span className="text-[10px] text-gray-400">(bientôt disponible)</span>
+          <input type="file" accept="image/*" className="sr-only" disabled />
         </label>
       </Field>
       <Field label={t('citizen.form.fields.description')}>
         <textarea
           className="textarea"
           placeholder={t('citizen.form.fields.descriptionPlaceholder')}
+          value={data.comment}
+          onChange={(e) => update('comment', e.target.value)}
+          required
         />
       </Field>
     </div>
   )
 }
 
-function Step2() {
+function Step2({ data, update }: StepProps) {
   const { t } = useTranslation()
   return (
     <div className="space-y-6">
@@ -498,36 +616,30 @@ function Step2() {
           <input
             className="input ps-10"
             placeholder={t('citizen.form.fields.addressPlaceholder')}
+            value={data.address}
+            onChange={(e) => update('address', e.target.value)}
+            required
           />
         </div>
       </Field>
-      <div className="grid sm:grid-cols-2 gap-5">
-        <Field label={t('citizen.form.fields.availableTime')}>
-          <select className="select">
-            <option>{t('citizen.form.fields.timeMorning')}</option>
-            <option>{t('citizen.form.fields.timeAfternoon')}</option>
-            <option>{t('citizen.form.fields.timeEvening')}</option>
-            <option>{t('citizen.form.fields.timeNight')}</option>
-          </select>
-        </Field>
-        <Field label={t('citizen.form.fields.environment')}>
-          <select className="select">
-            <option>{t('citizen.form.fields.envResidential')}</option>
-            <option>{t('citizen.form.fields.envCommercial')}</option>
-            <option>{t('citizen.form.fields.envPublic')}</option>
-            <option>{t('citizen.form.fields.envRoad')}</option>
-          </select>
-        </Field>
-      </div>
       <div className="grid sm:grid-cols-2 gap-5 pt-3 border-t border-gray-200">
         <Field label={t('citizen.form.fields.contactName')}>
-          <input className="input" />
+          <input
+            className="input"
+            value={data.contactName}
+            onChange={(e) => update('contactName', e.target.value)}
+          />
         </Field>
         <Field
           label={t('citizen.form.fields.contactPhone')}
           hint={t('citizen.form.fields.contactPhoneHint')}
         >
-          <input className="input" type="tel" />
+          <input
+            className="input"
+            type="tel"
+            value={data.contactPhone}
+            onChange={(e) => update('contactPhone', e.target.value)}
+          />
         </Field>
       </div>
     </div>
@@ -556,12 +668,14 @@ function RadioCard({
   name,
   value,
   label,
-  defaultChecked,
+  checked,
+  onChange,
 }: {
   name: string
   value: string
   label: string
-  defaultChecked?: boolean
+  checked?: boolean
+  onChange?: () => void
 }) {
   return (
     <label className="cursor-pointer">
@@ -569,7 +683,8 @@ function RadioCard({
         type="radio"
         name={name}
         value={value}
-        defaultChecked={defaultChecked}
+        checked={checked}
+        onChange={onChange}
         className="peer sr-only"
       />
       <div className="border border-gray-300 rounded-lg px-4 py-3 text-sm font-medium text-gray-700 text-center hover:border-gray-400 peer-checked:border-red-600 peer-checked:bg-red-50 peer-checked:text-red-700 peer-focus-visible:ring-2 peer-focus-visible:ring-red-200 transition-all">

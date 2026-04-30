@@ -6,6 +6,7 @@ import { env, corsOrigins } from './lib/env.js'
 import { logger } from './lib/logger.js'
 import { prisma } from './lib/db.js'
 import { authRouter } from './routes/auth.js'
+import { reportsRouter } from './routes/reports.js'
 import { errorHandler } from './middleware/error.js'
 
 const app = express()
@@ -54,6 +55,7 @@ app.get('/health', async (_req: Request, res: Response) => {
 
 /* ───────── API routes */
 app.use('/auth', authRouter)
+app.use('/reports', reportsRouter)
 
 /* ───────── 404 */
 app.use((_req: Request, res: Response) => {
