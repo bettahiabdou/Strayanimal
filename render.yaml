@@ -25,6 +25,11 @@ services:
         value: 4000
       - key: DATABASE_URL
         sync: false
+      # Non-pooled Neon URL — used by `prisma migrate deploy` for advisory
+      # locks. Same connection string as DATABASE_URL but without `-pooler`
+      # in the host (i.e. ep-xxx.region.aws.neon.tech, not ep-xxx-pooler...).
+      - key: DIRECT_URL
+        sync: false
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET

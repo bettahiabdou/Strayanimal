@@ -11,8 +11,12 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Pooled URL for runtime queries (Neon PgBouncer in transaction mode).
+  url       = env("DATABASE_URL")
+  // Direct (non-pooled) URL for migrations — advisory locks require a real
+  // session, which a transaction pooler can't hold across statements.
+  directUrl = env("DIRECT_URL")
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -20,10 +24,10 @@ datasource db {
 // ─────────────────────────────────────────────────────────────────
 
 enum UserRole {
-  ADMIN        // full access incl. settings/users
-  SUPERVISOR   // approve, assign, manage teams
-  AGENT        // triage queue, assign
-  FIELD_TEAM   // intervene; sees only assigned missions
+  ADMIN // full access incl. settings/users
+  SUPERVISOR // approve, assign, manage teams
+  AGENT // triage queue, assign
+  FIELD_TEAM // intervene; sees only assigned missions
 }
 
 enum UserStatus {
@@ -45,13 +49,13 @@ enum AnimalType {
 }
 
 enum ReportStatus {
-  PENDING        // awaiting agent triage
-  APPROVED       // agent validated, not yet assigned
-  ASSIGNED       // dispatched to a team
-  IN_PROGRESS    // team has marked as en-route or on-site
-  RESOLVED       // captured / handled
-  IMPOSSIBLE     // team unable to capture
-  REJECTED       // agent rejected (duplicate, out-of-scope, spam)
+  PENDING // awaiting agent triage
+  APPROVED // agent validated, not yet assigned
+  ASSIGNED // dispatched to a team
+  IN_PROGRESS // team has marked as en-route or on-site
+  RESOLVED // captured / handled
+  IMPOSSIBLE // team unable to capture
+  REJECTED // agent rejected (duplicate, out-of-scope, spam)
 }
 
 enum ReportSource {
@@ -70,8 +74,8 @@ enum MissionStatus {
 }
 
 enum MediaPurpose {
-  CITIZEN_REPORT      // photo attached to the original report
-  POST_INTERVENTION   // photo taken by field team after action
+  CITIZEN_REPORT // photo attached to the original report
+  POST_INTERVENTION // photo taken by field team after action
 }
 
 enum AuditCategory {
@@ -93,33 +97,33 @@ model User {
   name            String
   role            UserRole
   status          UserStatus @default(ACTIVE)
-  zone            String?    // primary zone of responsibility (free text for now)
+  zone            String? // primary zone of responsibility (free text for now)
   preferredLocale String     @default("fr") // "fr" or "ar"
 
   // Field-team membership
-  teamMembership  TeamMember?
+  teamMembership TeamMember?
 
   // Authored data
-  triagedReports  Report[]   @relation("TriagedBy")
-  assignedReports Report[]   @relation("AssignedBy")
+  triagedReports  Report[]       @relation("TriagedBy")
+  assignedReports Report[]       @relation("AssignedBy")
   auditEvents     AuditEvent[]
   refreshTokens   RefreshToken[]
 
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-  lastLoginAt     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lastLoginAt DateTime?
 
   @@index([role, status])
 }
 
 model RefreshToken {
-  id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
   revokedAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   // Useful for forensics
   ip        String?
   userAgent String?
@@ -131,7 +135,7 @@ model RefreshToken {
 model Team {
   id        String       @id @default(cuid())
   name      String       @unique
-  zone      String       // primary intervention zone
+  zone      String // primary intervention zone
   isActive  Boolean      @default(true)
   members   TeamMember[]
   missions  Mission[]
@@ -140,11 +144,11 @@ model Team {
 }
 
 model TeamMember {
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId  String  @unique
-  team    Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  teamId  String
-  isLead  Boolean @default(false)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String  @unique
+  team   Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  teamId String
+  isLead Boolean @default(false)
 
   @@id([userId, teamId])
   @@index([teamId])
@@ -165,39 +169,39 @@ model Report {
   status      ReportStatus   @default(PENDING)
 
   // Geo (PostGIS later — for now plain decimals)
-  latitude    Float
-  longitude   Float
-  address     String
-  zone        String         // commune sub-zone (free text from form / inferred)
+  latitude  Float
+  longitude Float
+  address   String
+  zone      String // commune sub-zone (free text from form / inferred)
 
   // Content
-  comment     String         @db.Text
-  rejectReason String?       @db.Text
+  comment      String  @db.Text
+  rejectReason String? @db.Text
 
   // Citizen contact (optional, mostly anonymous)
-  citizenName  String?
-  citizenPhone String?
-  preferredLocale String     @default("fr")
+  citizenName     String?
+  citizenPhone    String?
+  preferredLocale String  @default("fr")
 
   // Triage
-  triagedBy   User?          @relation("TriagedBy", fields: [triagedById], references: [id], onDelete: SetNull)
+  triagedBy   User?     @relation("TriagedBy", fields: [triagedById], references: [id], onDelete: SetNull)
   triagedById String?
   triagedAt   DateTime?
 
   // Assignment
-  assignedBy  User?          @relation("AssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  assignedBy   User?     @relation("AssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
   assignedById String?
-  assignedAt  DateTime?
+  assignedAt   DateTime?
 
   // Mission (one report → one mission once assigned)
-  mission     Mission?
+  mission Mission?
 
   // Media
-  media       MediaAsset[]
+  media MediaAsset[]
 
-  receivedAt  DateTime       @default(now())
-  resolvedAt  DateTime?
-  updatedAt   DateTime       @updatedAt
+  receivedAt DateTime  @default(now())
+  resolvedAt DateTime?
+  updatedAt  DateTime  @updatedAt
 
   @@index([status, isUrgent])
   @@index([receivedAt])
@@ -205,50 +209,50 @@ model Report {
 }
 
 model Mission {
-  id           String        @id @default(cuid())
-  report       Report        @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  reportId     String        @unique
-  team         Team          @relation(fields: [teamId], references: [id])
-  teamId       String
-  status       MissionStatus @default(ASSIGNED)
-  agentNote    String?       @db.Text  // internal note from assigning agent
-  fieldNote    String?       @db.Text  // note from the field team after intervention
+  id        String        @id @default(cuid())
+  report    Report        @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reportId  String        @unique
+  team      Team          @relation(fields: [teamId], references: [id])
+  teamId    String
+  status    MissionStatus @default(ASSIGNED)
+  agentNote String?       @db.Text // internal note from assigning agent
+  fieldNote String?       @db.Text // note from the field team after intervention
 
   // Stage timestamps
-  assignedAt   DateTime      @default(now())
-  enRouteAt    DateTime?
-  onSiteAt     DateTime?
-  closedAt     DateTime?
+  assignedAt DateTime  @default(now())
+  enRouteAt  DateTime?
+  onSiteAt   DateTime?
+  closedAt   DateTime?
 
   // Lifecycle
-  outcome      MissionStatus? // CAPTURED or IMPOSSIBLE — null while open
-  durationMin  Int?           // computed at close
+  outcome     MissionStatus? // CAPTURED or IMPOSSIBLE — null while open
+  durationMin Int? // computed at close
 
-  updatedAt    DateTime      @updatedAt
+  updatedAt DateTime @updatedAt
 
   @@index([teamId, status])
   @@index([status])
 }
 
 model MediaAsset {
-  id          String       @id @default(cuid())
-  report      Report       @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  reportId    String
-  purpose     MediaPurpose
+  id       String       @id @default(cuid())
+  report   Report       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reportId String
+  purpose  MediaPurpose
 
   // Storage strategy:
   //   - Phase 1 (now): bytes stored inline in `data`. storageKey = "db:<cuid>".
   //   - Phase 2 (Sprint 1.6 v2): move to Cloudflare R2. storageKey = R2 object key, data = NULL.
-  storageKey  String?      // R2 object key when external; "db:<id>" when inline
-  data        Bytes?       // raw bytes when stored in DB (Phase 1)
-  url         String?      // optional public URL if bucket is public
+  storageKey String? // R2 object key when external; "db:<id>" when inline
+  data       Bytes? // raw bytes when stored in DB (Phase 1)
+  url        String? // optional public URL if bucket is public
 
-  contentType String
-  bytes       Int
-  width       Int?
-  height      Int?
-  uploadedById String?     // user who uploaded; null for anonymous citizen submissions
-  createdAt   DateTime     @default(now())
+  contentType  String
+  bytes        Int
+  width        Int?
+  height       Int?
+  uploadedById String? // user who uploaded; null for anonymous citizen submissions
+  createdAt    DateTime @default(now())
 
   @@index([reportId, purpose])
 }
@@ -260,8 +264,8 @@ model MediaAsset {
 model AuditEvent {
   id        String        @id @default(cuid())
   category  AuditCategory
-  action    String        // e.g. "report.approve", "team.create"
-  target    String?       // human-readable target (e.g. "OZN-2618-47" or team id)
+  action    String // e.g. "report.approve", "team.create"
+  target    String? // human-readable target (e.g. "OZN-2618-47" or team id)
   details   Json?
   user      User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   userId    String?
