@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Crosshair, Loader2 } from 'lucide-react'
+import { Crosshair, Loader2, AlertCircle } from 'lucide-react'
 
-/* Fix the default Leaflet icon paths (Vite doesn't bundle them automatically). */
+/* Custom red SVG marker (Vite doesn't bundle the default Leaflet PNG paths). */
 const defaultIcon = L.icon({
   iconUrl:
     'data:image/svg+xml;utf8,' +
@@ -23,6 +23,15 @@ const OUARZAZATE = { lat: 30.92, lng: -6.91 }
 
 type Coords = { lat: number; lng: number }
 
+type GeoState =
+  | { kind: 'idle' }
+  | { kind: 'locating' }
+  | { kind: 'ok' }
+  | { kind: 'denied' } // user blocked permission
+  | { kind: 'unavailable' } // no GPS / no signal
+  | { kind: 'timeout' } // took too long
+  | { kind: 'unsupported' } // browser doesn't expose API
+
 type Props = {
   value: Coords | null
   onChange: (c: Coords) => void
@@ -32,24 +41,36 @@ type Props = {
 
 export function MapPicker({ value, onChange, autoLocate = true }: Props) {
   const center = value ?? OUARZAZATE
-  const [locating, setLocating] = useState(false)
+  const [geo, setGeo] = useState<GeoState>({ kind: 'idle' })
 
-  // On first mount, ask the browser for the user's position.
-  useEffect(() => {
-    if (!autoLocate || value || !('geolocation' in navigator)) return
-    setLocating(true)
+  function locate() {
+    if (!('geolocation' in navigator)) {
+      setGeo({ kind: 'unsupported' })
+      if (!value) onChange(OUARZAZATE)
+      return
+    }
+    setGeo({ kind: 'locating' })
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         onChange({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-        setLocating(false)
+        setGeo({ kind: 'ok' })
       },
-      () => {
-        // Fallback to Ouarzazate centre if denied/timeout/etc.
-        onChange(OUARZAZATE)
-        setLocating(false)
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) setGeo({ kind: 'denied' })
+        else if (err.code === err.POSITION_UNAVAILABLE) setGeo({ kind: 'unavailable' })
+        else if (err.code === err.TIMEOUT) setGeo({ kind: 'timeout' })
+        else setGeo({ kind: 'unavailable' })
+        // Always seed a fallback so the map is usable even if GPS fails.
+        if (!value) onChange(OUARZAZATE)
       },
-      { timeout: 6000, enableHighAccuracy: false },
+      // 20s for first fix on mobile (GPS can take 10–15s after a cold start),
+      // high accuracy uses GPS rather than wifi/IP triangulation.
+      { timeout: 20000, enableHighAccuracy: true, maximumAge: 30000 },
     )
+  }
+
+  useEffect(() => {
+    if (autoLocate && !value) locate()
   }, [])
 
   return (
@@ -67,7 +88,12 @@ export function MapPicker({ value, onChange, autoLocate = true }: Props) {
           maxZoom={19}
         />
         <FollowMarker value={value} />
-        <ClickHandler onPick={onChange} />
+        <ClickHandler
+          onPick={(c) => {
+            onChange(c)
+            setGeo({ kind: 'ok' })
+          }}
+        />
         {value && (
           <Marker
             position={[value.lat, value.lng]}
@@ -77,39 +103,27 @@ export function MapPicker({ value, onChange, autoLocate = true }: Props) {
               dragend: (e) => {
                 const ll = (e.target as L.Marker).getLatLng()
                 onChange({ lat: ll.lat, lng: ll.lng })
+                setGeo({ kind: 'ok' })
               },
             }}
           />
         )}
       </MapContainer>
 
-      {/* Recenter to GPS button */}
+      {/* Recenter / locate button */}
       <button
         type="button"
-        onClick={() => {
-          if (!('geolocation' in navigator)) return
-          setLocating(true)
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              onChange({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-              setLocating(false)
-            },
-            () => {
-              setLocating(false)
-            },
-            { timeout: 6000, enableHighAccuracy: true },
-          )
-        }}
-        disabled={locating}
+        onClick={locate}
+        disabled={geo.kind === 'locating'}
         className="absolute top-2 end-2 z-[400] inline-flex items-center gap-1.5 bg-white border border-gray-300 rounded-md text-xs font-semibold text-gray-800 px-3 py-1.5 shadow-sm hover:bg-gray-50 disabled:opacity-50"
-        aria-label="Recentrer sur ma position"
+        aria-label="Détecter ma position"
       >
-        {locating ? (
+        {geo.kind === 'locating' ? (
           <Loader2 className="size-3.5 animate-spin" />
         ) : (
           <Crosshair className="size-3.5" />
         )}
-        Ma position
+        {geo.kind === 'locating' ? 'Localisation…' : 'Ma position'}
       </button>
 
       {value && (
@@ -118,9 +132,52 @@ export function MapPicker({ value, onChange, autoLocate = true }: Props) {
         </div>
       )}
 
+      <GeoFeedback state={geo} onRetry={locate} />
+    </div>
+  )
+}
+
+function GeoFeedback({ state, onRetry }: { state: GeoState; onRetry: () => void }) {
+  if (state.kind === 'ok' || state.kind === 'idle') {
+    return (
       <p className="text-[11px] text-gray-500 px-3 py-2 bg-gray-50 border-t border-gray-200">
         Cliquez sur la carte ou faites glisser le repère pour ajuster la position.
       </p>
+    )
+  }
+  if (state.kind === 'locating') {
+    return (
+      <p className="text-[11px] text-gray-700 px-3 py-2 bg-blue-50 border-t border-blue-200 inline-flex items-center gap-1.5 w-full">
+        <Loader2 className="size-3.5 animate-spin" />
+        Détection de votre position en cours… (jusqu’à 20 s sur mobile)
+      </p>
+    )
+  }
+  const messages: Record<Exclude<GeoState['kind'], 'ok' | 'idle' | 'locating'>, string> = {
+    denied:
+      'Vous avez refusé la géolocalisation. Activez-la dans les réglages du navigateur, ou cliquez sur la carte pour placer le repère manuellement.',
+    unavailable:
+      'GPS indisponible. Vérifiez que la localisation est activée sur votre téléphone, ou cliquez sur la carte pour placer le repère manuellement.',
+    timeout:
+      'La détection a pris trop de temps. Sortez à l’extérieur pour un meilleur signal, réessayez, ou placez le repère manuellement.',
+    unsupported:
+      'Votre navigateur ne supporte pas la géolocalisation. Cliquez sur la carte pour placer le repère.',
+  }
+  return (
+    <div className="text-[11px] px-3 py-2 bg-amber-50 border-t border-amber-200 flex items-start gap-2">
+      <AlertCircle className="size-3.5 text-amber-700 mt-0.5 shrink-0" />
+      <div className="flex-1">
+        <p className="text-amber-900">{messages[state.kind]}</p>
+        {state.kind !== 'unsupported' && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-1 text-amber-900 underline font-semibold"
+          >
+            Réessayer
+          </button>
+        )}
+      </div>
     </div>
   )
 }

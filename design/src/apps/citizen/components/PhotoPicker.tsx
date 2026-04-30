@@ -96,12 +96,15 @@ export function PhotoPicker({ value, onChange, hint, label, uploadLabel }: Props
         </button>
       )}
 
+      {/*
+        No `capture` attribute → OS picker shows both "Take Photo" and "Choose from Library"
+        on iOS / Android. Adding capture="environment" would force camera-only.
+      */}
       <input
         ref={inputRef}
         type="file"
         accept={ACCEPT}
         multiple
-        capture="environment"
         className="sr-only"
         onChange={(e) => e.target.files && handleFiles(e.target.files)}
       />
