@@ -261,7 +261,11 @@ export function ReportDrawer({ publicRef, onClose, onMutated }: Props) {
         : 'idle'
 
   return (
-    <div className="fixed inset-0 z-50">
+    // z-[1200] so we sit above Leaflet's internal chrome (controls = 1000,
+    // popups = 700, tooltips = 650). Without this, the map's +/- buttons,
+    // the attribution bar, and pin tooltips render *over* the drawer when
+    // it's opened from /dashboard/map.
+    <div className="fixed inset-0 z-[1200]">
       <button
         aria-label={t('dashboard.detail.close')}
         onClick={onClose}
