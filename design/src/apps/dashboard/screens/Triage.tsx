@@ -288,7 +288,7 @@ function TriageCard({
         report.isUrgent ? 'border-red-200 ring-1 ring-red-100' : 'border-gray-200',
       )}
     >
-      <div className="size-32 md:size-40 bg-gray-100 shrink-0 relative">
+      <div className="w-32 md:w-40 self-stretch bg-gray-100 shrink-0 relative">
         <img src={report.photoUrl} alt="" className="size-full object-cover" loading="lazy" />
         {report.isUrgent && (
           <span className="absolute top-2 start-2 inline-flex items-center gap-1 bg-red-600 text-white text-[10px] font-bold uppercase px-1.5 py-0.5 rounded">
@@ -338,6 +338,7 @@ function TriageCard({
               <textarea
                 className="textarea text-sm"
                 rows={2}
+                style={{ minHeight: '3.5rem' }}
                 placeholder="Doublon de OZN-... / hors-zone / spam / contenu inapproprié…"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
@@ -399,7 +400,7 @@ function TriageCard({
                 </span>
               ) : (
                 <select
-                  className="textarea text-sm h-9"
+                  className="select text-sm py-2"
                   value={teamId}
                   onChange={(e) => setTeamId(e.target.value)}
                   disabled={submitting}
@@ -422,6 +423,7 @@ function TriageCard({
               <textarea
                 className="textarea text-sm"
                 rows={2}
+                style={{ minHeight: '3.5rem' }}
                 placeholder="Précisions sur l'animal, accès, créneau…"
                 value={agentNote}
                 onChange={(e) => setAgentNote(e.target.value)}
@@ -438,42 +440,43 @@ function TriageCard({
               </p>
             )}
 
-            <div className="mt-2 flex items-center justify-between gap-2 flex-wrap">
+            <div className="mt-3 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setState({ kind: 'idle' })
+                  setTeamId('')
+                  setAgentNote('')
+                }}
+                disabled={submitting}
+                className="btn-square btn-square-outline h-8 px-3 text-xs"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleApproveAndAssign}
+                disabled={submitting || !teams || teams.length === 0}
+                className="btn-square btn-square-red h-8 px-3 text-xs"
+              >
+                {submitting ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Check className="size-3.5" />
+                )}
+                Valider et assigner
+              </button>
+            </div>
+
+            <div className="mt-2 text-end">
               <button
                 type="button"
                 onClick={handleApproveOnly}
                 disabled={submitting}
-                className="text-xs font-semibold text-olive-800 hover:text-olive-900 underline-offset-2 hover:underline disabled:opacity-50"
+                className="text-[11px] text-gray-500 hover:text-olive-800 underline underline-offset-2 disabled:opacity-50"
               >
-                Valider sans assigner
+                ou valider sans assigner pour l'instant
               </button>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setState({ kind: 'idle' })
-                    setTeamId('')
-                    setAgentNote('')
-                  }}
-                  disabled={submitting}
-                  className="btn-square btn-square-outline h-8 px-3 text-xs"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="button"
-                  onClick={handleApproveAndAssign}
-                  disabled={submitting || !teams || teams.length === 0}
-                  className="btn-square btn-square-red h-8 px-3 text-xs"
-                >
-                  {submitting ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <Check className="size-3.5" />
-                  )}
-                  Valider et assigner
-                </button>
-              </div>
             </div>
           </div>
         )}
