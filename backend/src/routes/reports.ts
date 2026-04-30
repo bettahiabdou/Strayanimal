@@ -1,11 +1,13 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { asyncHandler, NotFoundError } from '../lib/http.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, requireRole } from '../middleware/auth.js'
 import {
+  approveReport,
   getReportByRef,
   getReportStats,
   listReports,
+  rejectReport,
   submitCitizenReport,
 } from '../services/reports.service.js'
 
@@ -124,6 +126,57 @@ reportsRouter.get(
     const ref = req.params.publicRef ?? ''
     const report = await getReportByRef(ref)
     if (!report) throw new NotFoundError('Signalement introuvable.')
+    res.json({ report })
+  }),
+)
+
+/* ─────────── POST /reports/:publicRef/approve ───────────
+ *
+ * Auth required (ADMIN / SUPERVISOR / AGENT). Moves a PENDING report → APPROVED.
+ */
+
+const approveSchema = z.object({
+  agentNote: z.string().max(2000).optional(),
+})
+
+reportsRouter.post(
+  '/:publicRef/approve',
+  requireAuth,
+  requireRole('ADMIN', 'SUPERVISOR', 'AGENT'),
+  asyncHandler(async (req, res) => {
+    const body = approveSchema.parse(req.body ?? {})
+    const ref = req.params.publicRef ?? ''
+    const report = await approveReport({
+      publicRef: ref,
+      userId: req.user!.sub,
+      agentNote: body.agentNote,
+    })
+    res.json({ report })
+  }),
+)
+
+/* ─────────── POST /reports/:publicRef/reject ───────────
+ *
+ * Auth required (ADMIN / SUPERVISOR / AGENT). Moves a PENDING report → REJECTED
+ * with a reason that's stored on the report and in the audit log.
+ */
+
+const rejectSchema = z.object({
+  reason: z.string().min(1, 'Motif requis.').max(500),
+})
+
+reportsRouter.post(
+  '/:publicRef/reject',
+  requireAuth,
+  requireRole('ADMIN', 'SUPERVISOR', 'AGENT'),
+  asyncHandler(async (req, res) => {
+    const body = rejectSchema.parse(req.body)
+    const ref = req.params.publicRef ?? ''
+    const report = await rejectReport({
+      publicRef: ref,
+      userId: req.user!.sub,
+      reason: body.reason,
+    })
     res.json({ report })
   }),
 )

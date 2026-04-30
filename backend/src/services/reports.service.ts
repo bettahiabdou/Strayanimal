@@ -5,6 +5,7 @@ import {
   type ReportCategory,
   type ReportStatus,
 } from '@prisma/client'
+import { ConflictError, NotFoundError } from '../lib/http.js'
 
 type Locale = 'fr' | 'ar'
 
@@ -243,6 +244,91 @@ export async function listReports(input: ListReportsInput = {}) {
     pageSize,
     total,
   }
+}
+
+/* ─────────────────────────── Triage actions ──────────────── */
+
+async function getPendingReportOrThrow(publicRef: string) {
+  const r = await prisma.report.findUnique({
+    where: { publicRef },
+    select: { id: true, publicRef: true, status: true },
+  })
+  if (!r) throw new NotFoundError('Signalement introuvable.')
+  if (r.status !== 'PENDING') {
+    throw new ConflictError(`Ce signalement n'est plus en attente (statut actuel : ${r.status}).`)
+  }
+  return r
+}
+
+export async function approveReport({
+  publicRef,
+  userId,
+  agentNote,
+}: {
+  publicRef: string
+  userId: string
+  agentNote?: string
+}) {
+  const found = await getPendingReportOrThrow(publicRef)
+  const updated = await prisma.report.update({
+    where: { id: found.id },
+    data: {
+      status: 'APPROVED',
+      triagedById: userId,
+      triagedAt: new Date(),
+    },
+    select: { id: true, publicRef: true, status: true },
+  })
+  try {
+    await prisma.auditEvent.create({
+      data: {
+        category: 'REPORT',
+        action: 'report.approve',
+        target: updated.publicRef,
+        userId,
+        details: agentNote ? ({ note: agentNote } as Prisma.InputJsonValue) : undefined,
+      },
+    })
+  } catch {
+    /* never let audit failures block approve */
+  }
+  return updated
+}
+
+export async function rejectReport({
+  publicRef,
+  userId,
+  reason,
+}: {
+  publicRef: string
+  userId: string
+  reason: string
+}) {
+  const found = await getPendingReportOrThrow(publicRef)
+  const updated = await prisma.report.update({
+    where: { id: found.id },
+    data: {
+      status: 'REJECTED',
+      rejectReason: reason,
+      triagedById: userId,
+      triagedAt: new Date(),
+    },
+    select: { id: true, publicRef: true, status: true },
+  })
+  try {
+    await prisma.auditEvent.create({
+      data: {
+        category: 'REPORT',
+        action: 'report.reject',
+        target: updated.publicRef,
+        userId,
+        details: { reason } as Prisma.InputJsonValue,
+      },
+    })
+  } catch {
+    /* never let audit failures block reject */
+  }
+  return updated
 }
 
 /* ─────────────────────────── Detail ───────────────────────── */

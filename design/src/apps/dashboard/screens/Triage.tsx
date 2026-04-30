@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Eye, MapPin, Clock, User, Loader2, AlertCircle, RefreshCcw } from 'lucide-react'
+import {
+  Eye,
+  MapPin,
+  Clock,
+  User,
+  Loader2,
+  AlertCircle,
+  RefreshCcw,
+  X,
+  Check,
+  Send,
+} from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
 import { adaptReports, type Report, type ReportCategory } from '../data/adapter'
 import { cn } from '@/design-system/cn'
@@ -45,6 +56,16 @@ export function Triage() {
   useEffect(() => {
     load()
   }, [])
+
+  /**
+   * Optimistic remove: hide the card from local state immediately on
+   * approve/reject. Refetch in the background so the badge counts catch up.
+   */
+  function removeLocal(id: string) {
+    setReports((cur) => (cur ? cur.filter((r) => r.id !== id) : cur))
+    // Refetch silently in the background so counts/badges match server truth.
+    setTimeout(load, 600)
+  }
 
   const visible = useMemo(() => {
     if (!reports) return []
@@ -117,7 +138,7 @@ export function Triage() {
       ) : (
         <div className="grid lg:grid-cols-2 gap-4">
           {visible.map((r) => (
-            <TriageCard key={r.id} report={r} />
+            <TriageCard key={r.id} report={r} onDone={() => removeLocal(r.id)} />
           ))}
         </div>
       )}
@@ -125,8 +146,51 @@ export function Triage() {
   )
 }
 
-function TriageCard({ report }: { report: Report }) {
+type CardState =
+  | { kind: 'idle' }
+  | { kind: 'rejecting' } // showing the reason form
+  | { kind: 'submitting' }
+  | { kind: 'error'; message: string }
+
+function TriageCard({ report, onDone }: { report: Report; onDone: () => void }) {
   const { t } = useTranslation()
+  const [state, setState] = useState<CardState>({ kind: 'idle' })
+  const [reason, setReason] = useState('')
+
+  async function handleApprove() {
+    setState({ kind: 'submitting' })
+    try {
+      await api.approveReport(report.id)
+      onDone()
+    } catch (e) {
+      setState({
+        kind: 'error',
+        message: e instanceof ApiError ? e.message : 'Échec de la validation.',
+      })
+    }
+  }
+
+  async function handleReject() {
+    if (!reason.trim()) {
+      setState({ kind: 'error', message: 'Veuillez préciser le motif de rejet.' })
+      return
+    }
+    setState({ kind: 'submitting' })
+    try {
+      await api.rejectReport(report.id, reason.trim())
+      onDone()
+    } catch (e) {
+      setState({
+        kind: 'error',
+        message: e instanceof ApiError ? e.message : 'Échec du rejet.',
+      })
+    }
+  }
+
+  const submitting = state.kind === 'submitting'
+  const showRejectForm = state.kind === 'rejecting' || (state.kind === 'error' && reason)
+  const errorMsg = state.kind === 'error' ? state.message : null
+
   return (
     <article
       className={cn(
@@ -174,36 +238,96 @@ function TriageCard({ report }: { report: Report }) {
 
         <p className="mt-3 text-[13px] text-gray-700 line-clamp-2 leading-snug">{report.comment}</p>
 
-        <div className="mt-auto pt-3 flex items-center justify-between gap-2">
-          <span className="text-[11px] text-gray-500 inline-flex items-center gap-1 truncate">
-            <User className="size-3" />
-            {report.reporter.name ?? 'Anonyme'}
-          </span>
-          <div className="flex gap-1.5">
-            <button
-              className="btn-square btn-square-outline h-8 px-2.5 text-xs"
-              aria-label={t('dashboard.triage.card.viewDetail')}
-              disabled
-              title="Bientôt disponible"
-            >
-              <Eye className="size-3.5" />
-            </button>
-            <button
-              className="btn-square btn-square-outline h-8 px-3 text-xs"
-              disabled
-              title="Bientôt disponible"
-            >
-              {t('dashboard.triage.card.reject')}
-            </button>
-            <button
-              className="btn-square btn-square-red h-8 px-3 text-xs"
-              disabled
-              title="Bientôt disponible"
-            >
-              {t('dashboard.triage.card.approve')}
-            </button>
+        {/* Inline reject reason form */}
+        {showRejectForm && (
+          <div className="mt-3 p-3 bg-red-50/60 border border-red-200 rounded-md">
+            <label className="block">
+              <span className="block text-[11px] uppercase tracking-wider text-red-800 font-semibold mb-1.5">
+                Motif du rejet
+              </span>
+              <textarea
+                className="textarea text-sm"
+                rows={2}
+                placeholder="Doublon de OZN-... / hors-zone / spam / contenu inapproprié…"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                disabled={submitting}
+                autoFocus
+              />
+            </label>
+            <div className="mt-2 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setState({ kind: 'idle' })
+                  setReason('')
+                }}
+                disabled={submitting}
+                className="btn-square btn-square-outline h-8 px-3 text-xs"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleReject}
+                disabled={submitting}
+                className="btn-square btn-square-red h-8 px-3 text-xs"
+              >
+                {submitting ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Send className="size-3.5" />
+                )}
+                Confirmer le rejet
+              </button>
+            </div>
           </div>
-        </div>
+        )}
+
+        {errorMsg && !showRejectForm && (
+          <p role="alert" className="mt-2 text-[11px] text-red-700 inline-flex items-center gap-1">
+            <AlertCircle className="size-3" /> {errorMsg}
+          </p>
+        )}
+
+        {!showRejectForm && (
+          <div className="mt-auto pt-3 flex items-center justify-between gap-2">
+            <span className="text-[11px] text-gray-500 inline-flex items-center gap-1 truncate">
+              <User className="size-3" />
+              {report.reporter.name ?? 'Anonyme'}
+            </span>
+            <div className="flex gap-1.5">
+              <button
+                className="btn-square btn-square-outline h-8 px-2.5 text-xs"
+                aria-label={t('dashboard.triage.card.viewDetail')}
+                disabled
+                title="Bientôt disponible"
+              >
+                <Eye className="size-3.5" />
+              </button>
+              <button
+                onClick={() => setState({ kind: 'rejecting' })}
+                disabled={submitting}
+                className="btn-square btn-square-outline h-8 px-3 text-xs"
+              >
+                <X className="size-3.5" />
+                {t('dashboard.triage.card.reject')}
+              </button>
+              <button
+                onClick={handleApprove}
+                disabled={submitting}
+                className="btn-square btn-square-red h-8 px-3 text-xs"
+              >
+                {submitting ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Check className="size-3.5" />
+                )}
+                {t('dashboard.triage.card.approve')}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </article>
   )

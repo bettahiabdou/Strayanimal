@@ -227,6 +227,28 @@ export const api = {
   async reportStats(): Promise<{ stats: ReportStats }> {
     return request<{ stats: ReportStats }>('GET', '/reports/stats')
   },
+
+  /** Approve a pending report (AGENT+ only). */
+  async approveReport(
+    publicRef: string,
+    agentNote?: string,
+  ): Promise<{ id: string; publicRef: string; status: ReportStatus }> {
+    const { report } = await request<{
+      report: { id: string; publicRef: string; status: ReportStatus }
+    }>('POST', `/reports/${encodeURIComponent(publicRef)}/approve`, agentNote ? { agentNote } : {})
+    return report
+  },
+
+  /** Reject a pending report with a reason (AGENT+ only). */
+  async rejectReport(
+    publicRef: string,
+    reason: string,
+  ): Promise<{ id: string; publicRef: string; status: ReportStatus }> {
+    const { report } = await request<{
+      report: { id: string; publicRef: string; status: ReportStatus }
+    }>('POST', `/reports/${encodeURIComponent(publicRef)}/reject`, { reason })
+    return report
+  },
 }
 
 /* ───────── Dashboard query/response types ───────── */
