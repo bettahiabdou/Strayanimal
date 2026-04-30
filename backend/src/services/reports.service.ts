@@ -331,7 +331,90 @@ export async function rejectReport({
   return updated
 }
 
-/* ─────────────────────────── Detail ───────────────────────── */
+/* ─────────────────────────── Assign ─────────────────────────
+ *
+ * APPROVED → ASSIGNED. Creates the Mission row in the same transaction so
+ * status and mission stay in sync (we never want a report flagged ASSIGNED
+ * without a Mission, or vice versa).
+ */
+
+export async function assignReport({
+  publicRef,
+  userId,
+  teamId,
+  agentNote,
+}: {
+  publicRef: string
+  userId: string
+  teamId: string
+  agentNote?: string
+}) {
+  const r = await prisma.report.findUnique({
+    where: { publicRef },
+    select: { id: true, publicRef: true, status: true },
+  })
+  if (!r) throw new NotFoundError('Signalement introuvable.')
+  if (r.status !== 'APPROVED') {
+    throw new ConflictError(
+      `Seuls les signalements approuvés peuvent être assignés (statut actuel : ${r.status}).`,
+    )
+  }
+
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    select: { id: true, name: true, isActive: true },
+  })
+  if (!team) throw new NotFoundError('Équipe introuvable.')
+  if (!team.isActive) throw new ConflictError("Cette équipe n'est plus active.")
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const report = await tx.report.update({
+      where: { id: r.id },
+      data: {
+        status: 'ASSIGNED',
+        assignedById: userId,
+        assignedAt: new Date(),
+      },
+      select: { id: true, publicRef: true, status: true },
+    })
+    await tx.mission.create({
+      data: {
+        reportId: report.id,
+        teamId: team.id,
+        status: 'ASSIGNED',
+        agentNote: agentNote ?? null,
+      },
+    })
+    return report
+  })
+
+  try {
+    await prisma.auditEvent.create({
+      data: {
+        category: 'REPORT',
+        action: 'report.assign',
+        target: updated.publicRef,
+        userId,
+        details: {
+          teamId: team.id,
+          teamName: team.name,
+          ...(agentNote ? { note: agentNote } : {}),
+        } as Prisma.InputJsonValue,
+      },
+    })
+  } catch {
+    /* never let audit failures block assign */
+  }
+
+  return updated
+}
+
+/* ─────────────────────────── Detail ─────────────────────────
+ *
+ * One round-trip: report + mission + media + the report-specific audit trail.
+ * The audit trail powers the drawer timeline; piggybacking here saves the
+ * frontend a second request for what is always rendered together.
+ */
 
 export async function getReportByRef(publicRef: string) {
   const r = await prisma.report.findUnique({
@@ -381,7 +464,33 @@ export async function getReportByRef(publicRef: string) {
       },
     },
   })
-  return r
+  if (!r) return null
+
+  // Pull the report's own audit trail (events targeting this publicRef) so
+  // the drawer renders a real timeline. Cheap — already indexed by createdAt.
+  const audit = await prisma.auditEvent.findMany({
+    where: { target: r.publicRef, category: 'REPORT' },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      createdAt: true,
+      action: true,
+      details: true,
+      user: { select: { name: true, role: true } },
+    },
+  })
+
+  return {
+    ...r,
+    audit: audit.map((a) => ({
+      id: a.id,
+      at: a.createdAt.toISOString(),
+      action: a.action,
+      details: a.details,
+      who: a.user?.name ?? 'Système',
+      role: a.user?.role ?? null,
+    })),
+  }
 }
 
 /* ─────────────────────────── Stats ────────────────────────── */

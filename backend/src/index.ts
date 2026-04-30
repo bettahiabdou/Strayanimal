@@ -8,6 +8,7 @@ import { prisma } from './lib/db.js'
 import { authRouter } from './routes/auth.js'
 import { reportsRouter } from './routes/reports.js'
 import { mediaRouter } from './routes/media.js'
+import { teamsRouter } from './routes/teams.js'
 import { errorHandler } from './middleware/error.js'
 
 const app = express()
@@ -59,6 +60,7 @@ app.get('/health', async (_req: Request, res: Response) => {
 /* ───────── API routes */
 app.use('/auth', authRouter)
 app.use('/reports', reportsRouter)
+app.use('/teams', teamsRouter)
 app.use('/media', mediaRouter)
 
 /* ───────── 404 */

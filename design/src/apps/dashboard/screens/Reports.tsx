@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Search,
@@ -143,12 +143,23 @@ export function Reports() {
   const reports = data?.reports ?? []
   const total = data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-  const selected = useMemo(
-    () => reports.find((r) => r.id === selectedId) ?? null,
-    [reports, selectedId],
-  )
   const showingFrom = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
   const showingTo = (page - 1) * PAGE_SIZE + reports.length
+
+  // Refetch the current page after a drawer mutation (approve / reject / assign).
+  function refetchAfterMutation() {
+    api
+      .listReports({
+        status: filter === 'all' ? undefined : FILTER_TO_API[filter],
+        search: debouncedSearch.trim() || undefined,
+        page,
+        pageSize: PAGE_SIZE,
+      })
+      .then((r) => setData({ reports: adaptReports(r.reports), total: r.total }))
+      .catch(() => {
+        /* silent — the drawer already showed any error */
+      })
+  }
 
   return (
     <>
@@ -345,7 +356,11 @@ export function Reports() {
         </div>
       </div>
 
-      <ReportDrawer report={selected} onClose={() => setSelectedId(null)} />
+      <ReportDrawer
+        publicRef={selectedId}
+        onClose={() => setSelectedId(null)}
+        onMutated={refetchAfterMutation}
+      />
     </>
   )
 }

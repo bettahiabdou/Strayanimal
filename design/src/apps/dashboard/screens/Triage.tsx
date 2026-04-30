@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
 import { adaptReports, type Report, type ReportCategory } from '../data/adapter'
+import { ReportDrawer } from '../components/ReportDrawer'
 import { cn } from '@/design-system/cn'
 
 const CATEGORY_TONE: Record<ReportCategory, string> = {
@@ -39,6 +40,7 @@ export function Triage() {
   const [reports, setReports] = useState<Report[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [openRef, setOpenRef] = useState<string | null>(null)
 
   async function load() {
     setError(null)
@@ -138,10 +140,25 @@ export function Triage() {
       ) : (
         <div className="grid lg:grid-cols-2 gap-4">
           {visible.map((r) => (
-            <TriageCard key={r.id} report={r} onDone={() => removeLocal(r.id)} />
+            <TriageCard
+              key={r.id}
+              report={r}
+              onDone={() => removeLocal(r.id)}
+              onOpen={() => setOpenRef(r.id)}
+            />
           ))}
         </div>
       )}
+
+      <ReportDrawer
+        publicRef={openRef}
+        onClose={() => setOpenRef(null)}
+        onMutated={() => {
+          // The user acted from the drawer — drop the card from the triage queue
+          // immediately, then silently refresh counts.
+          if (openRef) removeLocal(openRef)
+        }}
+      />
     </div>
   )
 }
@@ -152,7 +169,15 @@ type CardState =
   | { kind: 'submitting' }
   | { kind: 'error'; message: string }
 
-function TriageCard({ report, onDone }: { report: Report; onDone: () => void }) {
+function TriageCard({
+  report,
+  onDone,
+  onOpen,
+}: {
+  report: Report
+  onDone: () => void
+  onOpen: () => void
+}) {
   const { t } = useTranslation()
   const [state, setState] = useState<CardState>({ kind: 'idle' })
   const [reason, setReason] = useState('')
@@ -298,10 +323,9 @@ function TriageCard({ report, onDone }: { report: Report; onDone: () => void }) 
             </span>
             <div className="flex gap-1.5">
               <button
+                onClick={onOpen}
                 className="btn-square btn-square-outline h-8 px-2.5 text-xs"
                 aria-label={t('dashboard.triage.card.viewDetail')}
-                disabled
-                title="Bientôt disponible"
               >
                 <Eye className="size-3.5" />
               </button>

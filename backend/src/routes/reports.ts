@@ -4,6 +4,7 @@ import { asyncHandler, NotFoundError } from '../lib/http.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import {
   approveReport,
+  assignReport,
   getReportByRef,
   getReportStats,
   listReports,
@@ -176,6 +177,34 @@ reportsRouter.post(
       publicRef: ref,
       userId: req.user!.sub,
       reason: body.reason,
+    })
+    res.json({ report })
+  }),
+)
+
+/* ─────────── POST /reports/:publicRef/assign ───────────
+ *
+ * Auth required (ADMIN / SUPERVISOR / AGENT). Moves an APPROVED report →
+ * ASSIGNED and creates the Mission row in one transaction.
+ */
+
+const assignSchema = z.object({
+  teamId: z.string().min(1, 'Équipe requise.'),
+  agentNote: z.string().max(2000).optional(),
+})
+
+reportsRouter.post(
+  '/:publicRef/assign',
+  requireAuth,
+  requireRole('ADMIN', 'SUPERVISOR', 'AGENT'),
+  asyncHandler(async (req, res) => {
+    const body = assignSchema.parse(req.body)
+    const ref = req.params.publicRef ?? ''
+    const report = await assignReport({
+      publicRef: ref,
+      userId: req.user!.sub,
+      teamId: body.teamId,
+      agentNote: body.agentNote,
     })
     res.json({ report })
   }),

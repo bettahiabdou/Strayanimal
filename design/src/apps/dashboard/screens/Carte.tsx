@@ -45,8 +45,6 @@ export function Carte() {
     return rows
   }, [filter])
 
-  const selected = MOCK_REPORTS.find((r) => r.id === selectedId) ?? null
-
   return (
     <>
       <div className="space-y-6 max-w-[1400px]">
@@ -254,7 +252,7 @@ export function Carte() {
         </div>
       </div>
 
-      <ReportDrawer report={selected} onClose={() => setSelectedId(null)} />
+      <ReportDrawer publicRef={selectedId} onClose={() => setSelectedId(null)} />
     </>
   )
 }

@@ -249,6 +249,26 @@ export const api = {
     }>('POST', `/reports/${encodeURIComponent(publicRef)}/reject`, { reason })
     return report
   },
+
+  /** Assign an APPROVED report to a team (AGENT+ only). */
+  async assignReport(
+    publicRef: string,
+    teamId: string,
+    agentNote?: string,
+  ): Promise<{ id: string; publicRef: string; status: ReportStatus }> {
+    const { report } = await request<{
+      report: { id: string; publicRef: string; status: ReportStatus }
+    }>('POST', `/reports/${encodeURIComponent(publicRef)}/assign`, {
+      teamId,
+      ...(agentNote ? { agentNote } : {}),
+    })
+    return report
+  },
+
+  /** Active teams — populates the assign dropdown. */
+  async listTeams(): Promise<{ teams: ApiTeam[] }> {
+    return request<{ teams: ApiTeam[] }>('GET', '/teams')
+  },
 }
 
 /* ───────── Dashboard query/response types ───────── */
@@ -312,6 +332,26 @@ export type ReportDetail = ApiReportRow & {
     team: { id: string; name: string; zone: string } | null
   } | null
   media: Array<{ id: string; contentType: string; purpose: string; createdAt: string }>
+  /**
+   * Report-specific audit trail (events whose `target` matches this publicRef).
+   * Sorted oldest-first so the drawer can render it as a top-down timeline.
+   */
+  audit: Array<{
+    id: string
+    at: string
+    action: string
+    details: unknown
+    who: string
+    role: 'ADMIN' | 'SUPERVISOR' | 'AGENT' | 'FIELD_TEAM' | null
+  }>
+}
+
+export type ApiTeam = {
+  id: string
+  name: string
+  zone: string
+  isActive: boolean
+  memberCount: number
 }
 
 export type ReportStats = {
