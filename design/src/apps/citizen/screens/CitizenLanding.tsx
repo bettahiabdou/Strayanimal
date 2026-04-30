@@ -54,6 +54,18 @@ function hotlineWhatsapp(display: string) {
   return `https://wa.me/${hotlineToE164(display).replace('+', '')}`
 }
 
+/**
+ * In RTL contexts, the Unicode bidi algorithm reorders space-separated
+ * digit groups in an LTR string ("0524 88 24 87" can render as
+ * "87 24 88 0524"). Wrapping the value with FSI/PDI tells the engine to
+ * treat it as an isolated LTR run, used inside i18n interpolation where
+ * we can't drop in a <bdi> element.
+ *
+ * For JSX usages (TopBar, ActionStrip, Footer, FloatingActions) we use
+ * <bdi> directly — same effect, semantically clearer in markup.
+ */
+const LTR = (s: string) => `⁨${s}⁩`
+
 /* ----------------------------------------------------------
  * Photos — swap any of these URLs with your own.
  * Best: drop your own files into design/public/ and reference
@@ -151,14 +163,16 @@ function TopBar() {
           >
             <span>
               {t('citizen.topbar.hotline')}:{' '}
-              <strong className="text-gray-900">{publicHotline}</strong>
+              <strong className="text-gray-900">
+                <bdi>{publicHotline}</bdi>
+              </strong>
             </span>
           </a>
           <a
             href={`mailto:${publicEmail}`}
             className="hidden md:inline-flex items-center gap-2 hover:text-gray-900 transition-colors"
           >
-            <Mail className="size-3.5" /> {publicEmail}
+            <Mail className="size-3.5" /> <bdi>{publicEmail}</bdi>
           </a>
         </div>
       </div>
@@ -251,7 +265,7 @@ function ActionStrip() {
               href={hotlineTel(publicHotline)}
               className="block mt-2 text-4xl md:text-5xl font-black text-red-600 hover:text-red-700 transition-colors leading-none tracking-tight"
             >
-              {publicHotline}
+              <bdi>{publicHotline}</bdi>
             </a>
           </div>
           <div className="lg:col-span-7 flex flex-wrap gap-3 lg:justify-end">
@@ -341,7 +355,9 @@ function BilingualColumn({
   t: ReturnType<typeof useTranslation>['t']
   hotline: string
 }) {
-  const get = (k: string) => t(k, { lng: lang, hotline })
+  // Wrap the hotline with Unicode FSI…PDI so its space-separated digit
+  // chunks don't get reordered when injected into Arabic paragraphs.
+  const get = (k: string) => t(k, { lng: lang, hotline: LTR(hotline) })
   const dir = lang === 'ar' ? 'rtl' : 'ltr'
   const align = lang === 'ar' ? 'text-right' : 'text-left'
   const fontFamily = lang === 'ar' ? 'font-arabic' : ''
@@ -787,13 +803,13 @@ function SiteFooter() {
             <li className="flex items-start gap-2">
               <Phone className="size-4 text-gray-400 mt-0.5 shrink-0" />
               <a href={hotlineTel(publicHotline)} className="hover:text-white">
-                {publicHotline}
+                <bdi>{publicHotline}</bdi>
               </a>
             </li>
             <li className="flex items-start gap-2">
               <Mail className="size-4 text-gray-400 mt-0.5 shrink-0" />
               <a href={`mailto:${publicEmail}`} className="hover:text-white">
-                {publicEmail}
+                <bdi>{publicEmail}</bdi>
               </a>
             </li>
             <li className="flex items-start gap-2 mt-4">
