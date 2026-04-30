@@ -3,8 +3,8 @@
     "appName": "Animaux Errants",
     "brand": "Service de protection des animaux errants",
     "kingdom": "Royaume du Maroc",
-    "communeFull": "Groupement des communes territoriales",
-    "communeFullExtended": "Groupement des communes territoriales pour la prévention et la préservation de la santé",
+    "communeFull": "Groupement des Collectivités Territoriales pour la Prévention et la Santé Publique",
+    "communeFullExtended": "Groupement des Collectivités Territoriales pour la Prévention et la Santé Publique",
     "communeShort": "GCT — Ouarzazate",
     "back": "Retour",
     "next": "Suivant",
@@ -510,7 +510,7 @@
     "hero": {
       "kicker": "Communiqué du service",
       "title": "Pour la protection des animaux et la sécurité des habitants de Ouarzazate",
-      "subtitle": "Un service du Groupement des communes territoriales pour signaler tout animal errant — agressif, blessé ou seul — afin qu'une équipe communale intervienne dans les meilleurs délais.",
+      "subtitle": "Un service du Groupement des Collectivités Territoriales pour la Prévention et la Santé Publique pour signaler tout animal errant — agressif, blessé ou seul — afin qu'une équipe communale intervienne dans les meilleurs délais.",
       "primaryCta": "Signaler en ligne",
       "secondaryCta": "Comment ça fonctionne",
       "hotlineLabel": "Numéro vert · 24h/24",
@@ -540,7 +540,7 @@
     "about": {
       "kicker": "À propos du service",
       "title": "Un service public pour la protection des animaux et des habitants",
-      "p1": "Le Service de protection des animaux errants est une initiative du Groupement des communes territoriales de Ouarzazate. Il intervient sur l'ensemble du territoire de la commune pour répondre aux signalements de chiens et chats errants — agressifs, blessés ou en situation de détresse.",
+      "p1": "Le Service de protection des animaux errants est une initiative du Groupement des Collectivités Territoriales pour la Prévention et la Santé Publique de Ouarzazate. Il intervient sur l'ensemble du territoire de la commune pour répondre aux signalements de chiens et chats errants — agressifs, blessés ou en situation de détresse.",
       "p2": "Chaque signalement reçu est validé par un agent de la commune, classé selon son degré d'urgence, puis confié à l'équipe terrain la plus proche. Les animaux capturés sont pris en charge dans des conditions conformes à la réglementation en vigueur.",
       "p3": "Le service est gratuit, anonyme et accessible à tout résident de la commune. Aucune information personnelle n'est requise pour signaler ; un numéro de téléphone n'est demandé que si vous souhaitez être informé de la suite donnée à votre signalement."
     },
@@ -600,7 +600,7 @@
       "newReport": "Nouveau signalement"
     },
     "footer": {
-      "tagline": "Une initiative du Groupement des communes territoriales pour la protection des animaux errants et la sécurité publique.",
+      "tagline": "Une initiative du Groupement des Collectivités Territoriales pour la Prévention et la Santé Publique pour la protection des animaux errants et la sécurité publique.",
       "addressTitle": "Adresse",
       "address": "Avenue Mohammed V\nOuarzazate 45000\nMaroc",
       "contactTitle": "Contact",
@@ -611,7 +611,7 @@
       "privacy": "Politique de confidentialité",
       "terms": "Conditions d'utilisation",
       "contactPage": "Contact",
-      "copyright": "© {{year}} Groupement des communes territoriales — Ouarzazate. Tous droits réservés."
+      "copyright": "© {{year}} Groupement des Collectivités Territoriales pour la Prévention et la Santé Publique — Ouarzazate. Tous droits réservés."
     }
   }
 }

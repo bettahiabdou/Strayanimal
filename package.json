@@ -2,7 +2,7 @@
   "name": "strayanimals",
   "private": true,
   "version": "0.1.0",
-  "description": "Plateforme de protection des animaux errants — Groupement des communes territoriales — Ouarzazate",
+  "description": "Plateforme de protection des animaux errants — Groupement des Collectivités Territoriales pour la Prévention et la Santé Publique — Ouarzazate",
   "type": "module",
   "workspaces": [
     "backend",

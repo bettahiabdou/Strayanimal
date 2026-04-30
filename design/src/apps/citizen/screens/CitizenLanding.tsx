@@ -27,7 +27,8 @@ import { PhotoPicker } from '../components/PhotoPicker'
  */
 
 const DEFAULT_SETTINGS: PlatformSettings = {
-  communeName: 'Groupement des communes territoriales — Ouarzazate',
+  communeName:
+    'Groupement des Collectivités Territoriales pour la Prévention et la Santé Publique - Ouarzazate',
   serviceTitle: 'Service de protection des animaux errants',
   publicHotline: '0524 88 24 87',
   internalHotline: '0524 88 50 12',

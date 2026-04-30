@@ -15,7 +15,8 @@ const SETTING_ID = 'platform'
 /** Defaults match what the citizen page used to hard-code, so a fresh
  *  deploy looks identical to the old one until an admin edits them. */
 const DEFAULTS = {
-  communeName: 'Groupement des communes territoriales — Ouarzazate',
+  communeName:
+    'Groupement des Collectivités Territoriales pour la Prévention et la Santé Publique - Ouarzazate',
   serviceTitle: 'Service de protection des animaux errants',
   publicHotline: '0524 88 24 87',
   internalHotline: '0524 88 50 12',

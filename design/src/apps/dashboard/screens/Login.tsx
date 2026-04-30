@@ -76,7 +76,8 @@ export function Login() {
           </p>
         </div>
         <p className="text-[11px] text-white/55">
-          © {new Date().getFullYear()} Groupement des communes territoriales — Ouarzazate
+          © {new Date().getFullYear()} Groupement des Collectivités Territoriales pour la Prévention
+          et la Santé Publique — Ouarzazate
         </p>
       </div>
 

@@ -19,7 +19,7 @@ export function CommuneLogo({ size = 56, className }: Props) {
         src="/logo.png"
         width={size}
         height={size}
-        alt="Groupement des communes territoriales — Ouarzazate"
+        alt="Groupement des Collectivités Territoriales pour la Prévention et la Santé Publique — Ouarzazate"
         className={cn('rounded-full object-cover', className)}
         onError={() => setHasImage(false)}
       />
