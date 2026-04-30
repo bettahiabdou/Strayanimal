@@ -1,16 +1,42 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { LogOut, Truck, MapPin, Bell, Languages } from 'lucide-react'
+import { LogOut, Truck, MapPin, Bell, Languages, Loader2 } from 'lucide-react'
 import { CommuneLogo } from '@/design-system/CommuneLogo'
 import { LanguageSwitcher } from '@/design-system/LanguageSwitcher'
-import { CURRENT_AGENT } from '../data/mockMissions'
+import { useAuth } from '@/lib/auth-context'
+import { api } from '@/lib/api'
 import { cn } from '@/design-system/cn'
 
 export function Profile() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { user, logout } = useAuth()
   const [push, setPush] = useState(true)
+  const [teamName, setTeamName] = useState<string | null>(null)
+  const [loggingOut, setLoggingOut] = useState(false)
+
+  // Pull the team name from /missions/mine — it includes the team object.
+  useEffect(() => {
+    api
+      .myMissions('active')
+      .then((r) => setTeamName(r.team?.name ?? null))
+      .catch(() => {
+        /* leave as null */
+      })
+  }, [])
+
+  async function handleLogout() {
+    setLoggingOut(true)
+    try {
+      await logout()
+      navigate('/field-team/login', { replace: true })
+    } catch {
+      navigate('/field-team/login', { replace: true })
+    } finally {
+      setLoggingOut(false)
+    }
+  }
 
   function initials(name: string) {
     return name
@@ -27,16 +53,16 @@ export function Profile() {
       <section className="bg-gradient-to-b from-olive-700 to-olive-800 text-white px-5 pt-6 pb-8">
         <div className="flex items-center gap-4">
           <div className="size-16 rounded-full bg-olive-600 grid place-items-center text-white text-xl font-black ring-4 ring-olive-500/40">
-            {initials(CURRENT_AGENT.name)}
+            {user ? initials(user.name) : '—'}
           </div>
           <div className="min-w-0">
             <p className="text-[10px] uppercase tracking-[0.18em] text-white/70 font-semibold">
-              {t(`fieldTeam.profile.${CURRENT_AGENT.role}`)}
+              {t('fieldTeam.profile.leadAgent')}
             </p>
-            <h2 className="text-xl font-black truncate">{CURRENT_AGENT.name}</h2>
+            <h2 className="text-xl font-black truncate">{user?.name ?? '—'}</h2>
             <p className="text-xs text-white/85 inline-flex items-center gap-1.5">
               <Truck className="size-3" />
-              {CURRENT_AGENT.team}
+              {teamName ?? 'Équipe terrain'}
             </p>
           </div>
         </div>
@@ -45,8 +71,8 @@ export function Profile() {
       {/* Sections */}
       <section className="px-5 pt-4 space-y-3">
         <Card title={t('fieldTeam.profile.team')}>
-          <Row icon={Truck} label={t('fieldTeam.profile.team')} value={CURRENT_AGENT.team} />
-          <Row icon={MapPin} label={t('fieldTeam.profile.zone')} value={CURRENT_AGENT.zone} />
+          <Row icon={Truck} label={t('fieldTeam.profile.team')} value={teamName ?? '—'} />
+          <Row icon={MapPin} label={t('fieldTeam.profile.zone')} value={user?.zone ?? '—'} />
         </Card>
 
         <Card title={t('fieldTeam.profile.preferences')}>
@@ -74,10 +100,11 @@ export function Profile() {
         </Card>
 
         <button
-          onClick={() => navigate('/field-team/login')}
+          onClick={handleLogout}
+          disabled={loggingOut}
           className="btn-square btn-square-outline w-full text-rose-600 border-rose-200 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700"
         >
-          <LogOut className="size-4" />
+          {loggingOut ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
           {t('fieldTeam.profile.logout')}
         </button>
 

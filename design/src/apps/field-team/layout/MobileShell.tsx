@@ -3,51 +3,55 @@ import { useTranslation } from 'react-i18next'
 import { Inbox, Clock, User, Wifi, ChevronLeft } from 'lucide-react'
 import { cn } from '@/design-system/cn'
 import { LanguageSwitcher } from '@/design-system/LanguageSwitcher'
-import { CURRENT_AGENT } from '../data/mockMissions'
+import { useAuth } from '@/lib/auth-context'
+import { RequireFieldAuth } from './RequireFieldAuth'
 
 export function MobileShell() {
   return (
-    <div className="min-h-svh bg-gray-100 grid place-items-center py-6 lg:py-10">
-      <Link
-        to="/"
-        className="fixed bottom-4 start-4 z-50 inline-flex items-center gap-1.5 rounded-full bg-white border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 shadow hover:bg-gray-50"
-      >
-        <ChevronLeft className="size-3.5 rtl:rotate-180" />
-        Aperçu design
-      </Link>
+    <RequireFieldAuth>
+      <div className="min-h-svh bg-gray-100 grid place-items-center py-6 lg:py-10">
+        <Link
+          to="/"
+          className="fixed bottom-4 start-4 z-50 inline-flex items-center gap-1.5 rounded-full bg-white border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 shadow hover:bg-gray-50"
+        >
+          <ChevronLeft className="size-3.5 rtl:rotate-180" />
+          Aperçu design
+        </Link>
 
-      {/* Phone frame for desktop preview */}
-      <div className="w-full max-w-[420px] aspect-[420/900] bg-black rounded-[3rem] p-2.5 shadow-2xl">
-        <div className="relative h-full w-full overflow-hidden rounded-[2.5rem] bg-gray-50">
-          {/* Notch */}
-          <div className="absolute top-0 inset-x-0 z-50 h-7 bg-black grid place-items-center">
-            <div className="h-5 w-32 rounded-full bg-black ring-1 ring-gray-800" />
-          </div>
+        {/* Phone frame for desktop preview */}
+        <div className="w-full max-w-[420px] aspect-[420/900] bg-black rounded-[3rem] p-2.5 shadow-2xl">
+          <div className="relative h-full w-full overflow-hidden rounded-[2.5rem] bg-gray-50">
+            {/* Notch */}
+            <div className="absolute top-0 inset-x-0 z-50 h-7 bg-black grid place-items-center">
+              <div className="h-5 w-32 rounded-full bg-black ring-1 ring-gray-800" />
+            </div>
 
-          {/* Inner phone content with top bar + outlet + bottom nav */}
-          <div className="h-full w-full pt-7 flex flex-col">
-            <TopAppBar />
-            <main className="flex-1 overflow-y-auto bg-gray-50">
-              <Outlet />
-            </main>
-            <BottomNav />
+            {/* Inner phone content with top bar + outlet + bottom nav */}
+            <div className="h-full w-full pt-7 flex flex-col">
+              <TopAppBar />
+              <main className="flex-1 overflow-y-auto bg-gray-50">
+                <Outlet />
+              </main>
+              <BottomNav />
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </RequireFieldAuth>
   )
 }
 
 function TopAppBar() {
   const { t } = useTranslation()
+  const { user } = useAuth()
   return (
     <header className="bg-olive-700 text-white">
       <div className="px-4 h-14 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[9px] uppercase tracking-[0.18em] text-white/70 font-semibold">
-            {CURRENT_AGENT.team}
+            {user?.zone ?? 'Équipe terrain'}
           </p>
-          <p className="text-sm font-bold truncate">{CURRENT_AGENT.name}</p>
+          <p className="text-sm font-bold truncate">{user?.name ?? '—'}</p>
         </div>
         <div className="flex items-center gap-2">
           <LanguageSwitcher tone="dark" className="text-xs" />

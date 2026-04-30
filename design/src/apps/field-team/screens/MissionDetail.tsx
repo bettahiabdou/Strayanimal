@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -14,8 +14,12 @@ import {
   XCircle,
   Camera,
   Send,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react'
-import { MOCK_MISSIONS, type MissionCategory } from '../data/mockMissions'
+import { api, ApiError, type ApiMissionStatus } from '@/lib/api'
+import { adaptMission } from '../data/adapter'
+import type { Mission, MissionCategory, MissionStatus } from '../data/mockMissions'
 import { cn } from '@/design-system/cn'
 
 const CATEGORY_TONE: Record<MissionCategory, string> = {
@@ -24,7 +28,40 @@ const CATEGORY_TONE: Record<MissionCategory, string> = {
   stray: 'bg-yellow-100 text-yellow-700 border-yellow-200',
 }
 
+/** Local UI stage. Mirrors mission.status but adds 'finishing' and 'finished'. */
 type Stage = 'idle' | 'enRoute' | 'onSite' | 'finishing' | 'finished'
+
+function stageFromStatus(s: MissionStatus): Stage {
+  if (s === 'enRoute') return 'enRoute'
+  if (s === 'onSite') return 'onSite'
+  if (s === 'captured' || s === 'impossible' || s === 'completed') return 'finished'
+  return 'idle'
+}
+
+/* Resize a File to JPEG data URL, ~1280px max side, q 0.82.
+ * Same approach as the citizen-side PhotoPicker. Kept inline to avoid a
+ * cross-app import. */
+async function fileToResizedDataUrl(file: File, maxDim = 1280, quality = 0.82): Promise<string> {
+  const bitmap = await createImageBitmap(file).catch(() => null)
+  if (!bitmap) {
+    // Fallback: read as-is.
+    return new Promise<string>((resolve, reject) => {
+      const r = new FileReader()
+      r.onload = () => resolve(String(r.result))
+      r.onerror = reject
+      r.readAsDataURL(file)
+    })
+  }
+  const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height))
+  const w = Math.round(bitmap.width * scale)
+  const h = Math.round(bitmap.height * scale)
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  const ctx = canvas.getContext('2d')!
+  ctx.drawImage(bitmap, 0, 0, w, h)
+  return canvas.toDataURL('image/jpeg', quality)
+}
 
 export function MissionDetail() {
   const { t, i18n } = useTranslation()
@@ -32,15 +69,164 @@ export function MissionDetail() {
   const navigate = useNavigate()
   const Back = i18n.dir() === 'rtl' ? ChevronRight : ChevronLeft
 
-  const mission = MOCK_MISSIONS.find((m) => m.id === id) ?? MOCK_MISSIONS[0]
-  // Local stage starts from the persisted status
-  const initialStage: Stage =
-    mission.status === 'enRoute' ? 'enRoute' : mission.status === 'onSite' ? 'onSite' : 'idle'
-  const [stage, setStage] = useState<Stage>(initialStage)
+  const [mission, setMission] = useState<Mission | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [stage, setStage] = useState<Stage>('idle')
   const [outcome, setOutcome] = useState<'captured' | 'impossible' | null>(null)
   const [note, setNote] = useState('')
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  // Load mission by listing the inbox and finding by id. Cheap and avoids
+  // a second backend endpoint (active list is ≤ a few rows in practice).
+  useEffect(() => {
+    if (!id) return
+    let cancelled = false
+    Promise.all([api.myMissions('active'), api.myMissions('completed')])
+      .then(([active, completed]) => {
+        if (cancelled) return
+        const all = [...active.missions, ...completed.missions]
+        const apiRow = all.find((m) => m.id === id)
+        if (!apiRow) {
+          setLoadError('Mission introuvable.')
+          return
+        }
+        const m = adaptMission(apiRow)
+        setMission(m)
+        setStage(stageFromStatus(m.status))
+        if (m.outcome) setOutcome(m.outcome)
+      })
+      .catch((e) => {
+        if (!cancelled) setLoadError(e instanceof ApiError ? e.message : 'Connexion impossible.')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [id])
+
+  /* ─────────── Transitions ─────────── */
+
+  async function transition(to: ApiMissionStatus, opts?: { fieldNote?: string; photo?: string }) {
+    if (!mission) return
+    setSubmitting(true)
+    setActionError(null)
+    try {
+      const { mission: updated } = await api.transitionMission(mission.id, {
+        to,
+        ...(opts?.fieldNote ? { fieldNote: opts.fieldNote } : {}),
+        ...(opts?.photo ? { photo: opts.photo } : {}),
+      })
+      // Reflect new status locally so the UI doesn't have to refetch.
+      setMission((cur) =>
+        cur
+          ? {
+              ...cur,
+              status:
+                updated.status === 'EN_ROUTE'
+                  ? 'enRoute'
+                  : updated.status === 'ON_SITE'
+                    ? 'onSite'
+                    : updated.status === 'CAPTURED'
+                      ? 'captured'
+                      : updated.status === 'IMPOSSIBLE'
+                        ? 'impossible'
+                        : cur.status,
+              outcome:
+                updated.outcome === 'CAPTURED'
+                  ? 'captured'
+                  : updated.outcome === 'IMPOSSIBLE'
+                    ? 'impossible'
+                    : cur.outcome,
+              durationMin: updated.durationMin ?? cur.durationMin,
+              finishedAt: updated.closedAt ?? cur.finishedAt,
+            }
+          : cur,
+      )
+      return updated
+    } catch (e) {
+      setActionError(e instanceof ApiError ? e.message : 'Connexion impossible.')
+      throw e
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleDepart() {
+    try {
+      await transition('EN_ROUTE')
+      setStage('enRoute')
+    } catch {
+      /* error already set */
+    }
+  }
+  async function handleArrive() {
+    try {
+      await transition('ON_SITE')
+      setStage('onSite')
+    } catch {
+      /* error already set */
+    }
+  }
+  async function handleSubmitOutcome() {
+    if (!outcome) return
+    const to: ApiMissionStatus = outcome === 'captured' ? 'CAPTURED' : 'IMPOSSIBLE'
+    try {
+      await transition(to, {
+        fieldNote: note.trim() || undefined,
+        photo: photoDataUrl ?? undefined,
+      })
+      setStage('finished')
+    } catch {
+      /* error already set */
+    }
+  }
+
+  async function handlePhoto(file: File | null) {
+    if (!file) {
+      setPhotoDataUrl(null)
+      return
+    }
+    try {
+      const url = await fileToResizedDataUrl(file)
+      setPhotoDataUrl(url)
+    } catch {
+      setActionError('Impossible de lire la photo. Réessayez.')
+    }
+  }
+
+  if (loadError) {
+    return (
+      <div className="p-5">
+        <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-800 rounded-md p-3 text-sm">
+          <AlertCircle className="size-4 mt-0.5 shrink-0" />
+          <span>{loadError}</span>
+        </div>
+        <Link
+          to="/field-team"
+          className="mt-4 inline-flex items-center gap-1 text-sm text-olive-700 font-semibold"
+        >
+          <Back className="size-4" />
+          Retour
+        </Link>
+      </div>
+    )
+  }
+
+  if (!mission) {
+    return (
+      <div className="p-12 grid place-items-center text-gray-400">
+        <Loader2 className="size-6 animate-spin" />
+      </div>
+    )
+  }
 
   if (stage === 'finished') return <CompleteScreen onBack={() => navigate('/field-team')} />
+
+  const mapsHref =
+    mission.latitude && mission.longitude
+      ? `https://maps.google.com/?q=${mission.latitude},${mission.longitude}`
+      : `https://maps.google.com/?q=${encodeURIComponent(mission.address + ', Ouarzazate')}`
 
   return (
     <div className="pb-4">
@@ -55,7 +241,7 @@ export function MissionDetail() {
             <Back className="size-5" />
           </Link>
           <div className="flex-1 min-w-0">
-            <p className="font-mono text-[11px] text-gray-500">{mission.id}</p>
+            <p className="font-mono text-[11px] text-gray-500">{mission.publicRef ?? mission.id}</p>
             <p className="text-[13px] font-bold text-gray-900 truncate">{mission.address}</p>
           </div>
         </div>
@@ -87,14 +273,16 @@ export function MissionDetail() {
 
       {/* Quick facts grid */}
       <div className="bg-white border-b border-gray-200 px-5 py-4 grid grid-cols-2 gap-4">
-        <Fact icon={MapPin} label={t('fieldTeam.mission.distance')}>
-          <span className="font-mono">{mission.distanceKm} km</span>
-        </Fact>
-        <Fact icon={Clock} label={t('fieldTeam.mission.estimated')}>
-          <span className="font-mono">{mission.etaMin} min</span>
-        </Fact>
         <Fact icon={MapPin} label={t('fieldTeam.mission.zone')}>
           {mission.zone}
+        </Fact>
+        <Fact icon={Clock} label="Reçu">
+          <span className="font-mono">
+            {new Date(mission.receivedAt).toLocaleTimeString('fr-FR', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </span>
         </Fact>
         <Fact icon={User} label={t('fieldTeam.mission.agent')}>
           {mission.agentName}
@@ -118,7 +306,9 @@ export function MissionDetail() {
           {t('fieldTeam.mission.agentNote')}
         </p>
         {mission.agentNote ? (
-          <p className="text-[13px] text-gray-800 leading-relaxed">{mission.agentNote}</p>
+          <p className="text-[13px] text-gray-800 leading-relaxed whitespace-pre-line">
+            {mission.agentNote}
+          </p>
         ) : (
           <p className="text-[13px] text-gray-500 italic">{t('fieldTeam.mission.noNote')}</p>
         )}
@@ -127,7 +317,7 @@ export function MissionDetail() {
       {/* Navigate button */}
       <div className="bg-white border-b border-gray-200 px-5 py-4">
         <a
-          href={`https://maps.google.com/?q=${encodeURIComponent(mission.address + ', Ouarzazate')}`}
+          href={mapsHref}
           target="_blank"
           rel="noreferrer"
           className="btn-square btn-square-olive w-full h-12"
@@ -137,27 +327,42 @@ export function MissionDetail() {
         </a>
       </div>
 
+      {actionError && (
+        <div className="mx-5 mt-3 flex items-start gap-2 bg-red-50 border border-red-200 text-red-800 rounded-md p-3 text-xs">
+          <AlertCircle className="size-3.5 mt-0.5 shrink-0" />
+          <span>{actionError}</span>
+        </div>
+      )}
+
       {/* Action panel — shape depends on stage */}
       <ActionPanel
         stage={stage}
         outcome={outcome}
         note={note}
         setNote={setNote}
-        onDepart={() => setStage('enRoute')}
-        onArrive={() => setStage('onSite')}
+        photoDataUrl={photoDataUrl}
+        onPhoto={handlePhoto}
+        submitting={submitting}
+        onDepart={handleDepart}
+        onArrive={handleArrive}
         onCapture={() => {
           setOutcome('captured')
           setStage('finishing')
+          setActionError(null)
         }}
         onImpossible={() => {
           setOutcome('impossible')
           setStage('finishing')
+          setActionError(null)
         }}
         onCancelOutcome={() => {
           setOutcome(null)
+          setPhotoDataUrl(null)
+          setNote('')
           setStage('onSite')
+          setActionError(null)
         }}
-        onSubmit={() => setStage('finished')}
+        onSubmit={handleSubmitOutcome}
       />
     </div>
   )
@@ -188,6 +393,9 @@ function ActionPanel({
   outcome,
   note,
   setNote,
+  photoDataUrl,
+  onPhoto,
+  submitting,
   onDepart,
   onArrive,
   onCapture,
@@ -199,6 +407,9 @@ function ActionPanel({
   outcome: 'captured' | 'impossible' | null
   note: string
   setNote: (s: string) => void
+  photoDataUrl: string | null
+  onPhoto: (f: File | null) => void
+  submitting: boolean
   onDepart: () => void
   onArrive: () => void
   onCapture: () => void
@@ -211,8 +422,12 @@ function ActionPanel({
   if (stage === 'idle') {
     return (
       <div className="px-5 py-4 bg-white">
-        <button onClick={onDepart} className="btn-square btn-square-red w-full h-14 text-base">
-          <Truck className="size-5" />
+        <button
+          onClick={onDepart}
+          disabled={submitting}
+          className="btn-square btn-square-red w-full h-14 text-base"
+        >
+          {submitting ? <Loader2 className="size-5 animate-spin" /> : <Truck className="size-5" />}
           {t('fieldTeam.actions.depart')}
         </button>
       </div>
@@ -223,8 +438,12 @@ function ActionPanel({
     return (
       <div className="px-5 py-4 bg-white space-y-3">
         <Banner tone="active" icon={Truck} text="En route — bonne mission." />
-        <button onClick={onArrive} className="btn-square btn-square-red w-full h-14 text-base">
-          <MapPin className="size-5" />
+        <button
+          onClick={onArrive}
+          disabled={submitting}
+          className="btn-square btn-square-red w-full h-14 text-base"
+        >
+          {submitting ? <Loader2 className="size-5 animate-spin" /> : <MapPin className="size-5" />}
           {t('fieldTeam.actions.onSite')}
         </button>
       </div>
@@ -238,6 +457,7 @@ function ActionPanel({
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={onImpossible}
+            disabled={submitting}
             className="btn-square btn-square-outline h-14 text-base flex-col gap-1 py-2"
           >
             <XCircle className="size-5" />
@@ -245,6 +465,7 @@ function ActionPanel({
           </button>
           <button
             onClick={onCapture}
+            disabled={submitting}
             className="btn-square btn-square-red h-14 text-base flex-col gap-1 py-2"
           >
             <CheckCircle2 className="size-5" />
@@ -269,11 +490,34 @@ function ActionPanel({
       <div>
         <p className="text-sm font-semibold text-gray-800">{t('fieldTeam.actions.addPhoto')}</p>
         <p className="text-xs text-gray-500 mt-0.5">{t('fieldTeam.actions.addPhotoSubtitle')}</p>
-        <label className="mt-2 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-300 active:border-red-500 rounded-md py-8 cursor-pointer text-gray-500 active:text-red-600 bg-gray-50">
-          <Camera className="size-7" />
-          <span className="text-sm font-semibold">Prendre la photo</span>
-          <input type="file" accept="image/*" capture="environment" className="sr-only" />
-        </label>
+        {photoDataUrl ? (
+          <div className="mt-2 relative">
+            <img
+              src={photoDataUrl}
+              alt=""
+              className="w-full max-h-48 object-cover rounded-md border border-gray-200"
+            />
+            <button
+              type="button"
+              onClick={() => onPhoto(null)}
+              className="absolute top-2 end-2 inline-flex items-center justify-center size-7 rounded-full bg-white/95 border border-gray-200 text-gray-700 shadow"
+              aria-label="Retirer la photo"
+            >
+              <XCircle className="size-4" />
+            </button>
+          </div>
+        ) : (
+          <label className="mt-2 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-300 active:border-red-500 rounded-md py-8 cursor-pointer text-gray-500 active:text-red-600 bg-gray-50">
+            <Camera className="size-7" />
+            <span className="text-sm font-semibold">Prendre la photo</span>
+            <input
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={(e) => onPhoto(e.target.files?.[0] ?? null)}
+            />
+          </label>
+        )}
       </div>
 
       {/* Note */}
@@ -281,6 +525,7 @@ function ActionPanel({
         <p className="text-sm font-semibold text-gray-800 mb-2">{t('fieldTeam.actions.addNote')}</p>
         <textarea
           className="textarea text-sm"
+          style={{ minHeight: '4rem' }}
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder={t('fieldTeam.actions.notePlaceholder')}
@@ -291,16 +536,18 @@ function ActionPanel({
       <div className="flex flex-col gap-2 pt-2">
         <button
           onClick={onSubmit}
+          disabled={submitting}
           className={cn(
             'btn-square w-full h-14 text-base',
             isImpossible ? 'btn-square-olive' : 'btn-square-red',
           )}
         >
-          <Send className="size-5" />
+          {submitting ? <Loader2 className="size-5 animate-spin" /> : <Send className="size-5" />}
           {isImpossible ? t('fieldTeam.actions.submitImpossible') : t('fieldTeam.actions.submit')}
         </button>
         <button
           onClick={onCancelOutcome}
+          disabled={submitting}
           className="btn-square btn-square-outline w-full h-11 text-sm"
         >
           {t('fieldTeam.actions.back')}

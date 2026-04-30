@@ -26,6 +26,11 @@ export type Mission = {
   finishedAt?: string
   outcome?: 'captured' | 'impossible'
   durationMin?: number
+  /** The parent report's public-ref (OZN-…) — used by deep-links. Optional for legacy mocks. */
+  publicRef?: string
+  /** Geo of the report — used to deep-link into maps. Optional for legacy mocks. */
+  latitude?: number
+  longitude?: number
 }
 
 const photo = (id: string) =>

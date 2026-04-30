@@ -1,13 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { MapPin, Clock, Truck, ChevronRight, ChevronLeft } from 'lucide-react'
-import {
-  MOCK_MISSIONS,
-  type Mission,
-  type MissionCategory,
-  type MissionStatus,
-} from '../data/mockMissions'
+import { MapPin, Clock, Truck, ChevronRight, ChevronLeft, Loader2, AlertCircle } from 'lucide-react'
+import { api, ApiError } from '@/lib/api'
+import { adaptMissions } from '../data/adapter'
+import type { Mission, MissionCategory, MissionStatus } from '../data/mockMissions'
 import { cn } from '@/design-system/cn'
 
 const CATEGORY_TONE: Record<MissionCategory, string> = {
@@ -37,15 +34,34 @@ type Filter = 'all' | 'urgent' | 'enRoute'
 export function Inbox() {
   const { t, i18n } = useTranslation()
   const [filter, setFilter] = useState<Filter>('all')
+  const [missions, setMissions] = useState<Mission[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const Chevron = i18n.dir() === 'rtl' ? ChevronLeft : ChevronRight
 
+  useEffect(() => {
+    let cancelled = false
+    setError(null)
+    api
+      .myMissions('active')
+      .then((r) => {
+        if (!cancelled) setMissions(adaptMissions(r.missions))
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof ApiError ? e.message : 'Connexion impossible.')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const visible = useMemo(() => {
-    let rows = [...MOCK_MISSIONS]
-    if (filter === 'urgent') rows = rows.filter((m) => m.isUrgent)
+    const rows = missions ?? []
+    let out = [...rows]
+    if (filter === 'urgent') out = out.filter((m) => m.isUrgent)
     if (filter === 'enRoute')
-      rows = rows.filter((m) => m.status === 'enRoute' || m.status === 'onSite')
-    // Sort: urgent first, then enRoute, then assigned
-    return rows.sort((a, b) => {
+      out = out.filter((m) => m.status === 'enRoute' || m.status === 'onSite')
+    // Sort: urgent first, then enRoute/onSite, then assigned.
+    return out.sort((a, b) => {
       const order: Record<MissionStatus, number> = {
         enRoute: 0,
         onSite: 1,
@@ -57,9 +73,9 @@ export function Inbox() {
       if (a.isUrgent !== b.isUrgent) return a.isUrgent ? -1 : 1
       return (order[a.status] ?? 9) - (order[b.status] ?? 9)
     })
-  }, [filter])
+  }, [missions, filter])
 
-  const newCount = MOCK_MISSIONS.filter((m) => m.status === 'assigned').length
+  const newCount = (missions ?? []).filter((m) => m.status === 'assigned').length
 
   return (
     <div className="pb-4">
@@ -96,21 +112,38 @@ export function Inbox() {
         </div>
       </div>
 
+      {/* Error */}
+      {error && (
+        <div className="mx-5 mt-2 flex items-start gap-2 bg-red-50 border border-red-200 text-red-800 rounded-md p-3 text-xs">
+          <AlertCircle className="size-3.5 mt-0.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Loading */}
+      {missions === null && !error && (
+        <div className="px-5 py-12 grid place-items-center text-gray-400">
+          <Loader2 className="size-5 animate-spin" />
+        </div>
+      )}
+
       {/* List */}
-      {visible.length === 0 ? (
+      {missions !== null && visible.length === 0 ? (
         <div className="px-5 py-16 text-center">
           <Truck className="size-10 text-gray-300 mx-auto" strokeWidth={1.5} />
           <p className="mt-3 text-sm font-semibold text-gray-700">{t('fieldTeam.inbox.empty')}</p>
           <p className="mt-1 text-xs text-gray-500">{t('fieldTeam.inbox.emptySubtitle')}</p>
         </div>
       ) : (
-        <ul className="px-5 space-y-3">
-          {visible.map((m) => (
-            <li key={m.id}>
-              <MissionCard mission={m} chevron={<Chevron className="size-4" />} t={t} />
-            </li>
-          ))}
-        </ul>
+        missions !== null && (
+          <ul className="px-5 space-y-3">
+            {visible.map((m) => (
+              <li key={m.id}>
+                <MissionCard mission={m} chevron={<Chevron className="size-4" />} t={t} />
+              </li>
+            ))}
+          </ul>
+        )
       )}
     </div>
   )
@@ -154,7 +187,9 @@ function MissionCard({
             >
               {t(`dashboard.category.${mission.category}`)}
             </span>
-            <span className="font-mono text-[10px] text-gray-400">{mission.id}</span>
+            <span className="font-mono text-[10px] text-gray-400">
+              {mission.publicRef ?? mission.id}
+            </span>
             {mission.animalCount > 1 && (
               <span className="text-[10px] text-gray-500">× {mission.animalCount}</span>
             )}
@@ -162,7 +197,7 @@ function MissionCard({
           <p className="mt-1.5 text-[13px] font-bold text-gray-900 truncate">{mission.address}</p>
           <p className="text-[11px] text-gray-500 truncate inline-flex items-center gap-1">
             <MapPin className="size-3" />
-            {mission.zone} · {mission.distanceKm} km
+            {mission.zone}
           </p>
           <div className="mt-2 flex items-center justify-between">
             <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-700">

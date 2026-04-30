@@ -269,6 +269,35 @@ export const api = {
   async listTeams(): Promise<{ teams: ApiTeam[] }> {
     return request<{ teams: ApiTeam[] }>('GET', '/teams')
   },
+
+  /* ───────── Field-team mission endpoints ───────── */
+
+  /**
+   * Missions for the logged-in field-team user's team.
+   *   scope=active     → ASSIGNED, EN_ROUTE, ON_SITE
+   *   scope=completed  → CAPTURED, IMPOSSIBLE
+   */
+  async myMissions(scope: 'active' | 'completed' = 'active'): Promise<MyMissionsResponse> {
+    const qs = new URLSearchParams({ scope })
+    return request<MyMissionsResponse>('GET', `/missions/mine?${qs.toString()}`)
+  },
+
+  /** Move a mission along the state machine (FIELD_TEAM only). */
+  async transitionMission(
+    missionId: string,
+    body: {
+      to: ApiMissionStatus
+      fieldNote?: string
+      /** data:image/jpeg;base64,... — sent on terminal transitions. */
+      photo?: string
+    },
+  ): Promise<{ mission: ApiMissionUpdated }> {
+    return request<{ mission: ApiMissionUpdated }>(
+      'POST',
+      `/missions/${encodeURIComponent(missionId)}/transition`,
+      body,
+    )
+  },
 }
 
 /* ───────── Dashboard query/response types ───────── */
@@ -352,6 +381,57 @@ export type ApiTeam = {
   zone: string
   isActive: boolean
   memberCount: number
+}
+
+/* ───────── Mission types (field team) ───────── */
+
+export type ApiMissionStatus = 'ASSIGNED' | 'EN_ROUTE' | 'ON_SITE' | 'CAPTURED' | 'IMPOSSIBLE'
+
+export type ApiMissionRow = {
+  id: string
+  status: ApiMissionStatus
+  agentNote: string | null
+  fieldNote: string | null
+  assignedAt: string
+  enRouteAt: string | null
+  onSiteAt: string | null
+  closedAt: string | null
+  outcome: ApiMissionStatus | null
+  durationMin: number | null
+  report: {
+    id: string
+    publicRef: string
+    category: ReportCategory
+    animalType: AnimalType
+    animalCount: number
+    isUrgent: boolean
+    address: string
+    zone: string
+    comment: string
+    latitude: number
+    longitude: number
+    receivedAt: string
+    citizenName: string | null
+    citizenPhone: string | null
+    assignedByName: string | null
+    photos: Array<{ id: string; contentType: string }>
+  }
+}
+
+export type MyMissionsResponse = {
+  team: { id: string; name: string; zone: string } | null
+  missions: ApiMissionRow[]
+}
+
+export type ApiMissionUpdated = {
+  id: string
+  status: ApiMissionStatus
+  outcome: ApiMissionStatus | null
+  durationMin: number | null
+  enRouteAt: string | null
+  onSiteAt: string | null
+  closedAt: string | null
+  fieldNote: string | null
 }
 
 export type ReportStats = {

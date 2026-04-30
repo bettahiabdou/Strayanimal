@@ -1,6 +1,9 @@
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CheckCircle2, XCircle, Clock, MapPin } from 'lucide-react'
-import { COMPLETED_MISSIONS, type MissionCategory } from '../data/mockMissions'
+import { CheckCircle2, XCircle, Clock, MapPin, Loader2, AlertCircle } from 'lucide-react'
+import { api, ApiError } from '@/lib/api'
+import { adaptMissions } from '../data/adapter'
+import type { Mission, MissionCategory } from '../data/mockMissions'
 import { cn } from '@/design-system/cn'
 
 const CATEGORY_TONE: Record<MissionCategory, string> = {
@@ -10,18 +13,39 @@ const CATEGORY_TONE: Record<MissionCategory, string> = {
 }
 
 function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  return new Date(iso).toLocaleString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 export function History() {
   const { t } = useTranslation()
-  const captured = COMPLETED_MISSIONS.filter((m) => m.outcome === 'captured').length
-  const impossible = COMPLETED_MISSIONS.filter((m) => m.outcome === 'impossible').length
-  const avg = COMPLETED_MISSIONS.length
-    ? Math.round(
-        COMPLETED_MISSIONS.reduce((s, m) => s + (m.durationMin ?? 0), 0) /
-          COMPLETED_MISSIONS.length,
-      )
+  const [missions, setMissions] = useState<Mission[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    api
+      .myMissions('completed')
+      .then((r) => {
+        if (!cancelled) setMissions(adaptMissions(r.missions))
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof ApiError ? e.message : 'Connexion impossible.')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const list = missions ?? []
+  const captured = list.filter((m) => m.outcome === 'captured').length
+  const impossible = list.filter((m) => m.outcome === 'impossible').length
+  const avg = list.length
+    ? Math.round(list.reduce((s, m) => s + (m.durationMin ?? 0), 0) / list.length)
     : 0
 
   return (
@@ -35,28 +59,37 @@ export function History() {
 
       {/* Stats grid */}
       <div className="px-5 grid grid-cols-2 gap-2 mb-4">
-        <Stat
-          label={t('fieldTeam.history.stats.completed')}
-          value={COMPLETED_MISSIONS.length}
-          tone="olive"
-        />
+        <Stat label={t('fieldTeam.history.stats.completed')} value={list.length} tone="olive" />
         <Stat label={t('fieldTeam.history.stats.captured')} value={captured} tone="emerald" />
         <Stat label={t('fieldTeam.history.stats.impossible')} value={impossible} tone="rose" />
         <Stat
           label={t('fieldTeam.history.stats.avgTime')}
-          value={`${Math.floor(avg / 60)}h ${avg % 60}`}
+          value={
+            avg > 0 ? `${Math.floor(avg / 60)}h ${(avg % 60).toString().padStart(2, '0')}` : '—'
+          }
           tone="blue"
         />
       </div>
 
-      {/* List */}
-      {COMPLETED_MISSIONS.length === 0 ? (
+      {/* Error / loading / list */}
+      {error && (
+        <div className="mx-5 mt-2 flex items-start gap-2 bg-red-50 border border-red-200 text-red-800 rounded-md p-3 text-xs">
+          <AlertCircle className="size-3.5 mt-0.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {missions === null && !error ? (
+        <div className="px-5 py-12 grid place-items-center text-gray-400">
+          <Loader2 className="size-5 animate-spin" />
+        </div>
+      ) : list.length === 0 ? (
         <p className="px-5 py-12 text-center text-sm text-gray-500">
           {t('fieldTeam.history.empty')}
         </p>
       ) : (
         <ul className="px-5 space-y-3">
-          {COMPLETED_MISSIONS.map((m) => {
+          {list.map((m) => {
             const ok = m.outcome === 'captured'
             return (
               <li key={m.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -79,7 +112,9 @@ export function History() {
                       >
                         {t(`dashboard.category.${m.category}`)}
                       </span>
-                      <span className="font-mono text-[10px] text-gray-400">{m.id}</span>
+                      <span className="font-mono text-[10px] text-gray-400">
+                        {m.publicRef ?? m.id}
+                      </span>
                     </div>
                     <p className="mt-1 text-[13px] font-bold text-gray-900 truncate">{m.address}</p>
                     <p className="text-[11px] text-gray-500 truncate inline-flex items-center gap-1">
