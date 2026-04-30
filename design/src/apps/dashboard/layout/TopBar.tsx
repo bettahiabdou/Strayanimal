@@ -1,8 +1,12 @@
-import { Bell, Search } from 'lucide-react'
+import { Bell, Menu, Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { LanguageSwitcher } from '@/design-system/LanguageSwitcher'
 
-export function TopBar() {
+type Props = {
+  onMobileMenuOpen?: () => void
+}
+
+export function TopBar({ onMobileMenuOpen }: Props) {
   const { t } = useTranslation()
   const today = new Date().toLocaleDateString('fr-FR', {
     weekday: 'long',
@@ -12,9 +16,20 @@ export function TopBar() {
   })
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-20">
-      <div className="px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-        {/* Search */}
-        <div className="flex-1 max-w-xl relative">
+      <div className="px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-3">
+        {/* Mobile hamburger — only visible on <lg, opens the off-canvas drawer */}
+        <button
+          type="button"
+          onClick={onMobileMenuOpen}
+          className="lg:hidden size-9 grid place-items-center rounded-md hover:bg-gray-100 text-gray-700 -ms-1.5 shrink-0"
+          aria-label={t('dashboard.topbar.openMenu', 'Ouvrir le menu')}
+        >
+          <Menu className="size-5" />
+        </button>
+
+        {/* Search — hidden on the smallest widths to keep room for actions; the
+            field is mostly used on the dashboard's wider screens anyway. */}
+        <div className="flex-1 max-w-xl relative hidden sm:block">
           <Search className="absolute start-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
           <input
             type="text"
@@ -23,17 +38,21 @@ export function TopBar() {
           />
         </div>
 
-        <div className="flex items-center gap-5">
-          <span className="hidden lg:inline-block text-xs text-gray-500 font-medium first-letter:uppercase">
+        {/* Spacer on phones so the right-side actions stay right-aligned without
+            stretching across what would otherwise be the search field. */}
+        <div className="flex-1 sm:hidden" />
+
+        <div className="flex items-center gap-2 sm:gap-5">
+          <span className="hidden xl:inline-block text-xs text-gray-500 font-medium first-letter:uppercase">
             {today}
           </span>
           <LanguageSwitcher />
           <button
             aria-label={t('dashboard.topbar.notifications')}
-            className="relative size-10 rounded-md hover:bg-gray-100 grid place-items-center text-gray-600 transition-colors"
+            className="relative size-9 sm:size-10 rounded-md hover:bg-gray-100 grid place-items-center text-gray-600 transition-colors"
           >
             <Bell className="size-5" strokeWidth={1.75} />
-            <span className="absolute top-2 end-2 size-2 rounded-full bg-red-600 ring-2 ring-white" />
+            <span className="absolute top-1.5 end-1.5 size-2 rounded-full bg-red-600 ring-2 ring-white" />
           </button>
         </div>
       </div>
