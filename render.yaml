@@ -14,7 +14,8 @@ services:
     region: frankfurt
     branch: main
     rootDir: backend
-    buildCommand: npm ci && npx prisma generate && npm run build && npx prisma migrate deploy
+    # NODE_ENV=production at runtime, but we need devDependencies (TypeScript, @types/*) to build.
+    buildCommand: npm ci --include=dev && npx prisma generate && npm run build && npx prisma migrate deploy
     startCommand: npm start
     healthCheckPath: /health
     envVars:
