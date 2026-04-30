@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   LayoutDashboard,
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { CommuneLogo } from '@/design-system/CommuneLogo'
 import { cn } from '@/design-system/cn'
+import { useAuth } from '@/lib/auth-context'
 
 type NavItem = {
   to: string
@@ -40,8 +41,31 @@ const adminItems: NavItem[] = [
   { to: '/dashboard/audit', icon: ScrollText, key: 'audit' },
 ]
 
+function initials(name: string) {
+  return name
+    .split(' ')
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+}
+
+const ROLE_LABEL: Record<string, string> = {
+  ADMIN: 'Administrateur',
+  SUPERVISOR: 'Superviseur',
+  AGENT: 'Agent communal',
+  FIELD_TEAM: 'Équipe terrain',
+}
+
 export function Sidebar() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
+  const onLogout = async () => {
+    await logout()
+    navigate('/dashboard/login', { replace: true })
+  }
+
   return (
     <aside className="bg-olive-800 text-white w-64 shrink-0 flex flex-col h-svh sticky top-0 border-e border-olive-900">
       {/* Brand */}
@@ -109,13 +133,20 @@ export function Sidebar() {
       <div className="p-3 border-t border-olive-700/60">
         <div className="flex items-center gap-3 px-2 py-2">
           <div className="size-9 rounded-full bg-olive-600 grid place-items-center text-white text-sm font-bold">
-            MB
+            {user ? initials(user.name) : '—'}
           </div>
           <div className="flex-1 min-w-0 leading-tight">
-            <p className="text-sm font-semibold text-white truncate">M. Belkadi</p>
-            <p className="text-[11px] text-white/60 truncate">Agent communal</p>
+            <p className="text-sm font-semibold text-white truncate">{user?.name ?? '…'}</p>
+            <p className="text-[11px] text-white/60 truncate">
+              {user ? (ROLE_LABEL[user.role] ?? user.role) : ''}
+            </p>
           </div>
-          <button className="text-white/60 hover:text-white" aria-label={t('dashboard.nav.logout')}>
+          <button
+            type="button"
+            onClick={onLogout}
+            className="text-white/60 hover:text-white"
+            aria-label={t('dashboard.nav.logout')}
+          >
             <LogOut className="size-4" />
           </button>
         </div>

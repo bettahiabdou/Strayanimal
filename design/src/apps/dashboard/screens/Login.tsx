@@ -1,14 +1,49 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, type FormEvent } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, AlertCircle, Loader2 } from 'lucide-react'
 import { CommuneLogo } from '@/design-system/CommuneLogo'
 import { LanguageSwitcher } from '@/design-system/LanguageSwitcher'
+import { useAuth } from '@/lib/auth-context'
+import { ApiError } from '@/lib/api'
 
 export function Login() {
   const { t, i18n } = useTranslation()
   const isRTL = i18n.dir() === 'rtl'
   const Back = isRTL ? ChevronRight : ChevronLeft
   const navigate = useNavigate()
+  const location = useLocation()
+  const { login, user } = useAuth()
+
+  const [email, setEmail] = useState('admin@ouarzazate.ma')
+  const [password, setPassword] = useState('azerty1234')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // If already logged in, jump straight to the dashboard.
+  if (user) {
+    const target = (location.state as { from?: { pathname: string } } | null)?.from?.pathname
+    return <RedirectTo to={target && target.startsWith('/dashboard') ? target : '/dashboard'} />
+  }
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setError(null)
+    setSubmitting(true)
+    try {
+      await login(email.trim(), password)
+      const target = (location.state as { from?: { pathname: string } } | null)?.from?.pathname
+      navigate(target && target.startsWith('/dashboard') ? target : '/dashboard', { replace: true })
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message)
+      } else {
+        setError('Connexion impossible. Réessayez.')
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <div className="min-h-svh bg-gray-50 grid lg:grid-cols-2">
@@ -70,22 +105,20 @@ export function Login() {
             </h2>
             <p className="mt-2 text-gray-600">{t('dashboard.login.subtitle')}</p>
 
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                navigate('/dashboard')
-              }}
-              className="mt-9 space-y-5"
-            >
+            <form onSubmit={onSubmit} className="mt-9 space-y-5">
               <label className="block">
                 <span className="block text-sm font-semibold text-gray-800 mb-2">
                   {t('dashboard.login.email')}
                 </span>
                 <input
                   type="email"
+                  required
+                  autoComplete="username"
                   className="input"
                   placeholder={t('dashboard.login.emailPlaceholder')}
-                  defaultValue="agent@ouarzazate.ma"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={submitting}
                 />
               </label>
               <label className="block">
@@ -97,11 +130,34 @@ export function Login() {
                     {t('dashboard.login.forgot')}
                   </a>
                 </div>
-                <input type="password" className="input" defaultValue="azerty1234" />
+                <input
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  className="input"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={submitting}
+                />
               </label>
 
-              <button type="submit" className="btn-square btn-square-red w-full">
-                {t('dashboard.login.submit')}
+              {error && (
+                <div
+                  role="alert"
+                  className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-800 rounded-md p-3 text-sm"
+                >
+                  <AlertCircle className="size-4 mt-0.5 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="btn-square btn-square-red w-full disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {submitting && <Loader2 className="size-4 animate-spin" />}
+                {submitting ? 'Connexion…' : t('dashboard.login.submit')}
               </button>
             </form>
 
@@ -113,4 +169,11 @@ export function Login() {
       </div>
     </div>
   )
+}
+
+/* Tiny helper because <Navigate replace> needs to be returned, not awaited */
+function RedirectTo({ to }: { to: string }) {
+  const navigate = useNavigate()
+  navigate(to, { replace: true })
+  return null
 }
