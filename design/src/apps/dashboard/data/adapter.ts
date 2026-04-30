@@ -57,6 +57,8 @@ export function adaptReport(api: ApiReportRow): Report {
     isUrgent: api.isUrgent,
     agent: api.agent?.name,
     team: api.team?.name,
+    latitude: api.latitude,
+    longitude: api.longitude,
   }
 }
 

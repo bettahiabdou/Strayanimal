@@ -1,29 +1,96 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, Minus, Layers, Crosshair, RefreshCcw, ExternalLink } from 'lucide-react'
-import { MOCK_REPORTS, type Report, type ReportCategory } from '../data/mockReports'
+import { MapContainer, TileLayer, Marker, Tooltip, useMap } from 'react-leaflet'
+import L, { type Map as LeafletMap } from 'leaflet'
+import 'leaflet/dist/leaflet.css'
+import { RefreshCcw, Loader2, AlertCircle, Crosshair } from 'lucide-react'
+import { api, ApiError } from '@/lib/api'
+import { adaptReports, type Report, type ReportCategory } from '../data/adapter'
 import { CategoryBadge } from '../components/CategoryBadge'
 import { StatusBadge } from '../components/StatusBadge'
 import { ReportDrawer } from '../components/ReportDrawer'
-import { FauxMap } from '../components/FauxMap'
 import { cn } from '@/design-system/cn'
 
-/** Hardcoded display positions on the faux-map (percent of map area). */
-const PIN_POSITIONS: Record<string, { x: number; y: number }> = {
-  'OZN-2618-47': { x: 42, y: 38 },
-  'OZN-2618-46': { x: 58, y: 52 },
-  'OZN-2618-45': { x: 70, y: 30 },
-  'OZN-2618-44': { x: 28, y: 60 },
-  'OZN-2618-43': { x: 62, y: 70 },
-  'OZN-2618-42': { x: 35, y: 25 },
-  'OZN-2618-41': { x: 80, y: 58 },
-  'OZN-2618-40': { x: 50, y: 18 },
-}
+const OUARZAZATE: [number, number] = [30.92, -6.91]
 
 const PIN_COLOR: Record<ReportCategory, string> = {
+  aggressive: '#dc2626', // red-600
+  injured: '#f97316', // orange-500
+  stray: '#eab308', // yellow-500
+}
+
+const PIN_TAILWIND: Record<ReportCategory, string> = {
   aggressive: 'bg-red-600',
   injured: 'bg-orange-500',
   stray: 'bg-yellow-500',
+}
+
+/**
+ * Build a Leaflet DivIcon for a report — a small filled circle with a tail,
+ * coloured by category. Active state is bigger + has a halo so the pin the
+ * user is hovering on the sidebar pops out on the map.
+ */
+function buildIcon(category: ReportCategory, urgent: boolean, active: boolean) {
+  const color = PIN_COLOR[category]
+  const size = active ? 32 : 24
+  const halo = urgent
+    ? `<span style="
+      position:absolute; inset:0;
+      border-radius:9999px;
+      background:${color};
+      opacity:.45;
+      animation: ozn-ping 1.6s cubic-bezier(0,0,.2,1) infinite;
+    "></span>`
+    : ''
+  return L.divIcon({
+    className: '',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size],
+    html: `
+      <span style="position:relative; display:inline-block; width:${size}px; height:${size}px;">
+        ${halo}
+        <span style="
+          position:relative; display:flex; align-items:center; justify-content:center;
+          width:${size}px; height:${size}px;
+          border-radius:9999px;
+          background:${color};
+          box-shadow:0 1px 4px rgba(0,0,0,.25);
+          border:2px solid #fff;
+        ">
+          <span style="display:block; width:${active ? 8 : 6}px; height:${active ? 8 : 6}px; border-radius:9999px; background:#fff;"></span>
+        </span>
+      </span>
+    `,
+  })
+}
+
+/**
+ * Auto-fit the map to the visible markers' bounds whenever the list changes.
+ * Falls back to centering on Ouarzazate when there's nothing to show.
+ */
+function FitBounds({ reports }: { reports: Report[] }) {
+  const map = useMap()
+  const lastSig = useRef('')
+  useEffect(() => {
+    const points: [number, number][] = reports
+      .filter((r) => typeof r.latitude === 'number' && typeof r.longitude === 'number')
+      .map((r) => [r.latitude!, r.longitude!])
+    // Cheap signature so we don't fight user pan/zoom on unrelated re-renders.
+    const sig = `${points.length}:${points.map((p) => p.join(',')).join('|')}`
+    if (sig === lastSig.current) return
+    lastSig.current = sig
+    if (points.length === 0) {
+      map.setView(OUARZAZATE, 13)
+      return
+    }
+    if (points.length === 1) {
+      map.setView(points[0]!, 15)
+      return
+    }
+    const bounds = L.latLngBounds(points)
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 })
+  }, [reports, map])
+  return null
 }
 
 type Filter = 'all' | 'urgent' | 'inProgress' | 'resolved'
@@ -34,16 +101,58 @@ export function Carte() {
   const [hoverId, setHoverId] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
+  const [reports, setReports] = useState<Report[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [lastFetched, setLastFetched] = useState<Date | null>(null)
+  const mapRef = useRef<LeafletMap | null>(null)
+
+  async function load() {
+    setRefreshing(true)
+    setError(null)
+    try {
+      // Pull the most recent 200 reports — plenty for the map view; if the
+      // commune scales past that we'll add a date-range filter.
+      const r = await api.listReports({ pageSize: 200 })
+      setReports(adaptReports(r.reports))
+      setLastFetched(new Date())
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Connexion impossible.')
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
   const visible = useMemo(() => {
-    let rows: Report[] = MOCK_REPORTS.filter(
-      (r) => r.status !== 'rejected' && r.status !== 'pending',
+    if (!reports) return []
+    let rows = reports.filter(
+      (r) =>
+        // Drop pins that have no geo yet (shouldn't happen with real data,
+        // belt-and-braces).
+        typeof r.latitude === 'number' &&
+        typeof r.longitude === 'number' &&
+        // Skip pending/rejected by default — the map is for actionable cases.
+        r.status !== 'rejected' &&
+        r.status !== 'pending',
     )
     if (filter === 'urgent') rows = rows.filter((r) => r.isUrgent)
     if (filter === 'inProgress')
       rows = rows.filter((r) => r.status === 'inProgress' || r.status === 'assigned')
     if (filter === 'resolved') rows = rows.filter((r) => r.status === 'resolved')
     return rows
-  }, [filter])
+  }, [reports, filter])
+
+  function fmtRefresh(d: Date | null) {
+    if (!d) return '—'
+    const diff = Math.round((Date.now() - d.getTime()) / 1000)
+    if (diff < 30) return t('dashboard.map.now')
+    if (diff < 120) return `il y a ${diff}s`
+    return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  }
 
   return (
     <>
@@ -58,14 +167,21 @@ export function Carte() {
           </div>
           <div className="flex items-center gap-3 text-xs text-gray-500">
             <span className="inline-flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-              {t('dashboard.map.lastRefresh')} : {t('dashboard.map.now')}
+              <span
+                className={cn(
+                  'size-2 rounded-full',
+                  refreshing ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500 animate-pulse',
+                )}
+              />
+              {t('dashboard.map.lastRefresh')} : {fmtRefresh(lastFetched)}
             </span>
             <button
-              className="size-8 rounded-md hover:bg-gray-100 grid place-items-center text-gray-500"
+              onClick={load}
+              disabled={refreshing}
+              className="size-8 rounded-md hover:bg-gray-100 grid place-items-center text-gray-500 disabled:opacity-50"
               aria-label="Refresh"
             >
-              <RefreshCcw className="size-4" />
+              <RefreshCcw className={cn('size-4', refreshing && 'animate-spin')} />
             </button>
           </div>
         </div>
@@ -93,95 +209,90 @@ export function Carte() {
           </span>
         </div>
 
+        {/* Error */}
+        {error && (
+          <div
+            role="alert"
+            className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-800 rounded-md p-3 text-sm"
+          >
+            <AlertCircle className="size-4 mt-0.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
         {/* Map + sidebar */}
         <div className="grid lg:grid-cols-12 gap-4">
           {/* Map */}
           <div className="lg:col-span-8">
-            <div className="relative aspect-[4/3] rounded-md overflow-hidden border border-gray-200 bg-[#F4EEDF] shadow-inner">
-              <FauxMap />
+            <div className="relative aspect-[4/3] rounded-md overflow-hidden border border-gray-200 bg-gray-100">
+              {reports === null ? (
+                <div className="absolute inset-0 grid place-items-center text-gray-400 z-10 bg-white/60">
+                  <Loader2 className="size-6 animate-spin" />
+                </div>
+              ) : null}
 
-              {/* Pins */}
-              {visible.map((r) => {
-                const pos = PIN_POSITIONS[r.id]
-                if (!pos) return null
-                const isHover = hoverId === r.id
-                return (
-                  <button
-                    key={r.id}
-                    onMouseEnter={() => setHoverId(r.id)}
-                    onMouseLeave={() => setHoverId(null)}
-                    onClick={() => setSelectedId(r.id)}
-                    style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-                    className="absolute -translate-x-1/2 -translate-y-full group"
-                    aria-label={`Pin ${r.id}`}
-                  >
-                    <Pin category={r.category} urgent={r.isUrgent} active={isHover} />
-                    {isHover && (
-                      <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 z-30 w-56 bg-white rounded-md border border-gray-200 shadow-lg overflow-hidden">
-                        <div className="p-3">
+              <MapContainer
+                ref={(m) => {
+                  mapRef.current = m
+                }}
+                center={OUARZAZATE}
+                zoom={13}
+                scrollWheelZoom
+                className="size-full"
+              >
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                />
+                <FitBounds reports={visible} />
+                {visible.map((r) => {
+                  const lat = r.latitude!
+                  const lng = r.longitude!
+                  const isHover = hoverId === r.id
+                  return (
+                    <Marker
+                      key={r.id}
+                      position={[lat, lng]}
+                      icon={buildIcon(r.category, r.isUrgent, isHover)}
+                      eventHandlers={{
+                        mouseover: () => setHoverId(r.id),
+                        mouseout: () => setHoverId((cur) => (cur === r.id ? null : cur)),
+                        click: () => setSelectedId(r.id),
+                      }}
+                    >
+                      <Tooltip
+                        direction="top"
+                        offset={[0, -28]}
+                        opacity={1}
+                        className="!bg-white !border !border-gray-200 !rounded-md !shadow-lg !text-gray-900 !p-0"
+                      >
+                        <div className="p-2 max-w-[14rem]">
                           <div className="flex items-center gap-2 flex-wrap">
                             <CategoryBadge category={r.category} />
                             <span className="font-mono text-[10px] text-gray-500">{r.id}</span>
                           </div>
-                          <p className="mt-2 text-xs font-semibold text-gray-900 truncate">
+                          <p className="mt-1.5 text-xs font-semibold text-gray-900 truncate">
                             {r.address}
                           </p>
-                          <p className="text-[11px] text-gray-500">{r.zone}</p>
+                          <p className="text-[11px] text-gray-500 truncate">{r.zone}</p>
+                          <div className="mt-1.5">
+                            <StatusBadge status={r.status} />
+                          </div>
                         </div>
-                        <div className="px-3 pb-2">
-                          <StatusBadge status={r.status} />
-                        </div>
-                      </div>
-                    )}
-                  </button>
-                )
-              })}
+                      </Tooltip>
+                    </Marker>
+                  )
+                })}
+              </MapContainer>
 
-              {/* Map controls */}
-              <div className="absolute top-3 end-3 z-10 flex flex-col gap-1.5">
-                <div className="bg-white border border-gray-200 rounded-md shadow-sm flex flex-col">
-                  <button
-                    aria-label={t('dashboard.map.zoomIn')}
-                    className="size-9 grid place-items-center hover:bg-gray-50 text-gray-700 border-b border-gray-200"
-                  >
-                    <Plus className="size-4" />
-                  </button>
-                  <button
-                    aria-label={t('dashboard.map.zoomOut')}
-                    className="size-9 grid place-items-center hover:bg-gray-50 text-gray-700"
-                  >
-                    <Minus className="size-4" />
-                  </button>
-                </div>
-                <button
-                  aria-label={t('dashboard.map.centerOn')}
-                  className="size-9 grid place-items-center bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 text-gray-700"
-                >
-                  <Crosshair className="size-4" />
-                </button>
-                <button
-                  aria-label={t('dashboard.map.layers')}
-                  className="size-9 grid place-items-center bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 text-gray-700"
-                >
-                  <Layers className="size-4" />
-                </button>
-              </div>
-
-              {/* Bottom-left location label */}
-              <div className="absolute bottom-3 start-3 z-10 bg-white/95 backdrop-blur border border-gray-200 rounded-md px-3 py-1.5 text-[11px] text-gray-700 font-medium shadow-sm">
-                Ouarzazate · 30.92°N, 6.91°O · zoom 13
-              </div>
-
-              {/* Bottom-right OSM credit */}
-              <a
-                href="https://www.openstreetmap.org/#map=13/30.92/-6.91"
-                target="_blank"
-                rel="noreferrer"
-                className="absolute bottom-3 end-3 z-10 inline-flex items-center gap-1 text-[10px] text-gray-700 bg-white/95 backdrop-blur border border-gray-200 rounded px-2 py-1 hover:bg-white"
+              {/* Center-on-Ouarzazate control */}
+              <button
+                aria-label={t('dashboard.map.centerOn')}
+                onClick={() => mapRef.current?.setView(OUARZAZATE, 13)}
+                className="absolute top-3 end-3 z-[400] size-9 grid place-items-center bg-white border border-gray-200 rounded-md shadow-sm hover:bg-gray-50 text-gray-700"
               >
-                {t('dashboard.map.viewOSM')}
-                <ExternalLink className="size-3" />
-              </a>
+                <Crosshair className="size-4" />
+              </button>
             </div>
 
             {/* Legend */}
@@ -193,7 +304,7 @@ export function Carte() {
               <LegendItem color="bg-orange-500" label="Blessé" />
               <LegendItem color="bg-yellow-500" label="Errant" />
               <span className="ms-auto text-[11px] text-gray-500 font-mono">
-                {visible.length} pins · zoom 13
+                {visible.length} pins
               </span>
             </div>
           </div>
@@ -207,6 +318,11 @@ export function Carte() {
               <p className="font-mono text-2xl font-bold text-gray-900 mt-0.5">{visible.length}</p>
             </div>
             <ul className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
+              {visible.length === 0 && reports !== null && (
+                <li className="px-4 py-8 text-center text-sm text-gray-500">
+                  Aucun pin pour ces filtres.
+                </li>
+              )}
               {visible.map((r) => {
                 const isHover = hoverId === r.id
                 return (
@@ -214,7 +330,18 @@ export function Carte() {
                     key={r.id}
                     onMouseEnter={() => setHoverId(r.id)}
                     onMouseLeave={() => setHoverId(null)}
-                    onClick={() => setSelectedId(r.id)}
+                    onClick={() => {
+                      // Pan the map to the pin so the user can see what they clicked,
+                      // then open the drawer.
+                      if (
+                        mapRef.current &&
+                        typeof r.latitude === 'number' &&
+                        typeof r.longitude === 'number'
+                      ) {
+                        mapRef.current.setView([r.latitude, r.longitude], 16, { animate: true })
+                      }
+                      setSelectedId(r.id)
+                    }}
                     className={cn(
                       'px-4 py-3 flex items-start gap-3 cursor-pointer transition-colors',
                       isHover ? 'bg-olive-50' : 'hover:bg-gray-50',
@@ -223,7 +350,7 @@ export function Carte() {
                     <span
                       className={cn(
                         'mt-1 size-2.5 rounded-full ring-4 shrink-0',
-                        PIN_COLOR[r.category],
+                        PIN_TAILWIND[r.category],
                         r.isUrgent ? 'ring-red-100' : 'ring-gray-100',
                       )}
                     />
@@ -252,7 +379,21 @@ export function Carte() {
         </div>
       </div>
 
-      <ReportDrawer publicRef={selectedId} onClose={() => setSelectedId(null)} />
+      <ReportDrawer
+        publicRef={selectedId}
+        onClose={() => setSelectedId(null)}
+        onMutated={() => {
+          // After approve/reject/assign from the drawer, refresh the map.
+          load()
+        }}
+      />
+
+      {/* DivIcon ping animation (Leaflet's DivIcon needs the CSS in the document) */}
+      <style>{`
+        @keyframes ozn-ping {
+          75%, 100% { transform: scale(2); opacity: 0; }
+        }
+      `}</style>
     </>
   )
 }
@@ -262,44 +403,6 @@ function LegendItem({ color, label }: { color: string; label: string }) {
     <span className="inline-flex items-center gap-2 text-xs text-gray-700">
       <span className={cn('size-2.5 rounded-full', color)} />
       {label}
-    </span>
-  )
-}
-
-function Pin({
-  category,
-  urgent,
-  active,
-}: {
-  category: ReportCategory
-  urgent: boolean
-  active: boolean
-}) {
-  return (
-    <span className="relative inline-block">
-      {urgent && (
-        <span
-          className={cn(
-            'absolute inset-0 rounded-full animate-ping opacity-60',
-            PIN_COLOR[category],
-          )}
-        />
-      )}
-      <span
-        className={cn(
-          'relative inline-grid place-items-center rounded-full ring-2 ring-white shadow-md transition-transform',
-          PIN_COLOR[category],
-          active ? 'size-7' : 'size-5',
-        )}
-      >
-        <span className="block size-1.5 rounded-full bg-white" />
-      </span>
-      <span
-        className={cn(
-          'absolute -bottom-1 left-1/2 -translate-x-1/2 size-2 rotate-45',
-          PIN_COLOR[category],
-        )}
-      />
     </span>
   )
 }

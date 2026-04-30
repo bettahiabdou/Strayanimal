@@ -25,6 +25,9 @@ export type Report = {
   isUrgent: boolean
   agent?: string
   team?: string
+  /** Geo of the report — used by the map screen. Optional for legacy mocks. */
+  latitude?: number
+  longitude?: number
 }
 
 const photo = (id: string) =>
