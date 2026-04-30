@@ -181,7 +181,7 @@ export type ListReportsInput = {
 
 export async function listReports(input: ListReportsInput = {}) {
   const page = Math.max(1, input.page ?? 1)
-  const pageSize = Math.min(100, Math.max(1, input.pageSize ?? 25))
+  const pageSize = Math.min(500, Math.max(1, input.pageSize ?? 25))
   const where: Prisma.ReportWhereInput = {}
 
   if (input.status && input.status !== 'ALL') where.status = input.status

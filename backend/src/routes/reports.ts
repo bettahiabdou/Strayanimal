@@ -95,7 +95,10 @@ const listSchema = z.object({
   zone: z.string().max(200).optional(),
   search: z.string().max(200).optional(),
   page: z.coerce.number().int().positive().optional(),
-  pageSize: z.coerce.number().int().positive().max(100).optional(),
+  // Max bumped to 500 so the Carte screen can plot a useful slice of recent
+  // reports in one shot. Normal pagination still defaults to 25 (set in the
+  // service), so existing screens are unaffected.
+  pageSize: z.coerce.number().int().positive().max(500).optional(),
 })
 
 reportsRouter.get(
