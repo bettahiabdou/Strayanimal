@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -15,13 +15,44 @@ import {
 import { LanguageSwitcher } from '@/design-system/LanguageSwitcher'
 import { CommuneLogo } from '@/design-system/CommuneLogo'
 import { cn } from '@/design-system/cn'
-import { api, ApiError } from '@/lib/api'
+import { api, ApiError, type PlatformSettings } from '@/lib/api'
 import { MapPicker } from '../components/MapPicker'
 import { PhotoPicker } from '../components/PhotoPicker'
 
-const HOTLINE_DISPLAY = '0524 88 24 87'
-const HOTLINE_TEL = 'tel:+212524882487'
-const WHATSAPP_URL = 'https://wa.me/212524882487'
+/* ─────────── Platform settings (commune contact info) ───────────
+ *
+ * Loaded from GET /settings on mount. Fallback values match what the
+ * page hard-coded before the settings table existed, so the citizen
+ * site stays fully usable even if the API is unreachable.
+ */
+
+const DEFAULT_SETTINGS: PlatformSettings = {
+  communeName: 'Groupement des communes territoriales — Ouarzazate',
+  serviceTitle: 'Service de protection des animaux errants',
+  publicHotline: '0524 88 24 87',
+  internalHotline: '0524 88 50 12',
+  publicEmail: 'info@animaux-ouarzazate.ma',
+  address: 'Avenue Mohammed V, Ouarzazate 45000',
+  openingHours: 'Lundi – Vendredi : 08h30 – 17h00\nWeek-end : urgences uniquement',
+  updatedAt: '',
+}
+
+const SettingsCtx = createContext<PlatformSettings>(DEFAULT_SETTINGS)
+function useSettings() {
+  return useContext(SettingsCtx)
+}
+
+/** Hotline → +212XXXXXXXXX (drop spaces, drop leading 0, prepend +212). */
+function hotlineToE164(display: string) {
+  const digits = display.replace(/\D/g, '').replace(/^0/, '')
+  return `+212${digits}`
+}
+function hotlineTel(display: string) {
+  return `tel:${hotlineToE164(display)}`
+}
+function hotlineWhatsapp(display: string) {
+  return `https://wa.me/${hotlineToE164(display).replace('+', '')}`
+}
 
 /* ----------------------------------------------------------
  * Photos — swap any of these URLs with your own.
@@ -55,26 +86,46 @@ const Instagram = ({ className = 'size-3.5' }: { className?: string }) => (
 export function CitizenLanding() {
   const { i18n } = useTranslation()
   const isRTL = i18n.dir() === 'rtl'
+  const [settings, setSettings] = useState<PlatformSettings>(DEFAULT_SETTINGS)
+
+  // Public endpoint — no auth needed. Failure is non-fatal: we keep DEFAULT_SETTINGS.
+  useEffect(() => {
+    let cancelled = false
+    api
+      .getSettings()
+      .then(({ settings }) => {
+        if (!cancelled) setSettings(settings)
+      })
+      .catch(() => {
+        /* keep defaults */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
-    <div className="bg-white text-gray-900 min-h-svh flex flex-col">
-      <TopBar />
-      <SiteHeader />
-      <HeroBanner />
-      <ActionStrip />
-      <AboutSection />
-      <AttentionSection />
-      <FormSection />
-      <SiteFooter />
-      <FloatingActions />
-      <BackToHubLink isRTL={isRTL} />
-    </div>
+    <SettingsCtx.Provider value={settings}>
+      <div className="bg-white text-gray-900 min-h-svh flex flex-col">
+        <TopBar />
+        <SiteHeader />
+        <HeroBanner />
+        <ActionStrip />
+        <AboutSection />
+        <AttentionSection />
+        <FormSection />
+        <SiteFooter />
+        <FloatingActions />
+        <BackToHubLink isRTL={isRTL} />
+      </div>
+    </SettingsCtx.Provider>
   )
 }
 
 /* ----- TOP BAR (white, slim, utility info) ----- */
 function TopBar() {
   const { t } = useTranslation()
+  const { publicHotline, publicEmail } = useSettings()
   return (
     <div className="bg-white border-b border-gray-200 text-sm">
       <div className="mx-auto max-w-[1400px] px-4 lg:px-8 h-9 flex items-center justify-between gap-4 flex-wrap">
@@ -83,7 +134,7 @@ function TopBar() {
             <Facebook />
           </a>
           <a
-            href={WHATSAPP_URL}
+            href={hotlineWhatsapp(publicHotline)}
             aria-label="WhatsApp"
             className="hover:text-gray-900 transition-colors"
           >
@@ -95,25 +146,19 @@ function TopBar() {
         </div>
         <div className="flex items-center gap-x-6 gap-y-1 flex-wrap text-[12.5px] text-gray-600">
           <a
-            href={HOTLINE_TEL}
+            href={hotlineTel(publicHotline)}
             className="inline-flex items-center gap-2 hover:text-gray-900 transition-colors"
           >
             <span>
               {t('citizen.topbar.hotline')}:{' '}
-              <strong className="text-gray-900">{HOTLINE_DISPLAY}</strong>
+              <strong className="text-gray-900">{publicHotline}</strong>
             </span>
           </a>
           <a
-            href={`mailto:${t('citizen.topbar.email')}`}
+            href={`mailto:${publicEmail}`}
             className="hidden md:inline-flex items-center gap-2 hover:text-gray-900 transition-colors"
           >
-            <Mail className="size-3.5" /> {t('citizen.topbar.email')}
-          </a>
-          <a
-            href={`mailto:${t('citizen.topbar.help')}`}
-            className="hidden lg:inline-flex items-center gap-2 hover:text-gray-900 transition-colors"
-          >
-            <Mail className="size-3.5" /> {t('citizen.topbar.help')}
+            <Mail className="size-3.5" /> {publicEmail}
           </a>
         </div>
       </div>
@@ -193,6 +238,7 @@ function HeroBanner() {
 /* ----- ACTION STRIP (hotline + CTAs, white bg, separated from banner) ----- */
 function ActionStrip() {
   const { t } = useTranslation()
+  const { publicHotline } = useSettings()
   return (
     <section className="bg-white border-b border-gray-200">
       <div className="mx-auto max-w-[1400px] px-4 lg:px-8 py-8 md:py-10">
@@ -202,10 +248,10 @@ function ActionStrip() {
               {t('citizen.topbar.hotline')} · 24h/24
             </p>
             <a
-              href={HOTLINE_TEL}
+              href={hotlineTel(publicHotline)}
               className="block mt-2 text-4xl md:text-5xl font-black text-red-600 hover:text-red-700 transition-colors leading-none tracking-tight"
             >
-              {HOTLINE_DISPLAY}
+              {publicHotline}
             </a>
           </div>
           <div className="lg:col-span-7 flex flex-wrap gap-3 lg:justify-end">
@@ -216,13 +262,13 @@ function ActionStrip() {
               <ChevronLeft className="size-4 hidden rtl:inline" />
             </a>
             <a
-              href={WHATSAPP_URL}
+              href={hotlineWhatsapp(publicHotline)}
               className="btn-square bg-green-500 hover:bg-green-600 text-white"
             >
               <MessageCircle className="size-4" />
               WhatsApp
             </a>
-            <a href={HOTLINE_TEL} className="btn-square btn-square-outline">
+            <a href={hotlineTel(publicHotline)} className="btn-square btn-square-outline">
               <Phone className="size-4" />
               {t('citizen.attention.ctaCall')}
             </a>
@@ -260,18 +306,22 @@ function AboutSection() {
 /* ----- ATTENTION (bilingual side-by-side, white bg, red headers) ----- */
 function AttentionSection() {
   const { t } = useTranslation()
+  const { publicHotline } = useSettings()
   return (
     <section id="attention" className="py-20 md:py-28 bg-white">
       <div className="mx-auto max-w-[1400px] px-4 lg:px-8 grid md:grid-cols-2 gap-x-14 gap-y-10">
-        <BilingualColumn lang="fr" title="ATTENTION !" t={t} />
-        <BilingualColumn lang="ar" title="تنبيه!" t={t} />
+        <BilingualColumn lang="fr" title="ATTENTION !" t={t} hotline={publicHotline} />
+        <BilingualColumn lang="ar" title="تنبيه!" t={t} hotline={publicHotline} />
       </div>
       <div className="mx-auto max-w-[1400px] px-4 lg:px-8 mt-12 flex flex-col sm:flex-row items-center justify-center gap-3">
-        <a href={WHATSAPP_URL} className="btn-square bg-green-500 hover:bg-green-600 text-white">
+        <a
+          href={hotlineWhatsapp(publicHotline)}
+          className="btn-square bg-green-500 hover:bg-green-600 text-white"
+        >
           <MessageCircle className="size-4" />
           {t('citizen.attention.ctaWhatsapp')}
         </a>
-        <a href={HOTLINE_TEL} className="btn-square btn-square-red">
+        <a href={hotlineTel(publicHotline)} className="btn-square btn-square-red">
           <Phone className="size-4" />
           {t('citizen.attention.ctaCall')}
         </a>
@@ -284,12 +334,14 @@ function BilingualColumn({
   lang,
   title,
   t,
+  hotline,
 }: {
   lang: 'fr' | 'ar'
   title: string
   t: ReturnType<typeof useTranslation>['t']
+  hotline: string
 }) {
-  const get = (k: string) => t(k, { lng: lang, hotline: HOTLINE_DISPLAY })
+  const get = (k: string) => t(k, { lng: lang, hotline })
   const dir = lang === 'ar' ? 'rtl' : 'ltr'
   const align = lang === 'ar' ? 'text-right' : 'text-left'
   const fontFamily = lang === 'ar' ? 'font-arabic' : ''
@@ -706,6 +758,7 @@ function RadioCard({
 /* ----- FOOTER ----- */
 function SiteFooter() {
   const { t } = useTranslation()
+  const { publicHotline, publicEmail, address, openingHours } = useSettings()
   return (
     <footer className="bg-gray-900 text-gray-300 mt-auto border-t-4 border-olive-600">
       <div className="mx-auto max-w-[1400px] px-4 lg:px-8 py-14 grid md:grid-cols-12 gap-10">
@@ -733,19 +786,19 @@ function SiteFooter() {
           <ul className="space-y-2 text-sm">
             <li className="flex items-start gap-2">
               <Phone className="size-4 text-gray-400 mt-0.5 shrink-0" />
-              <a href={HOTLINE_TEL} className="hover:text-white">
-                {HOTLINE_DISPLAY}
+              <a href={hotlineTel(publicHotline)} className="hover:text-white">
+                {publicHotline}
               </a>
             </li>
             <li className="flex items-start gap-2">
               <Mail className="size-4 text-gray-400 mt-0.5 shrink-0" />
-              <a href={`mailto:${t('citizen.topbar.email')}`} className="hover:text-white">
-                {t('citizen.topbar.email')}
+              <a href={`mailto:${publicEmail}`} className="hover:text-white">
+                {publicEmail}
               </a>
             </li>
             <li className="flex items-start gap-2 mt-4">
               <MapPin className="size-4 text-gray-400 mt-0.5 shrink-0" />
-              <span className="whitespace-pre-line">{t('citizen.footer.address')}</span>
+              <span className="whitespace-pre-line">{address}</span>
             </li>
           </ul>
         </div>
@@ -753,9 +806,7 @@ function SiteFooter() {
           <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-3">
             {t('citizen.footer.openingHoursTitle')}
           </p>
-          <p className="whitespace-pre-line text-sm text-gray-400">
-            {t('citizen.footer.openingHours')}
-          </p>
+          <p className="whitespace-pre-line text-sm text-gray-400">{openingHours}</p>
           <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold mt-6 mb-3">
             {t('citizen.footer.linksTitle')}
           </p>
@@ -794,17 +845,18 @@ function SiteFooter() {
 
 /* ----- FLOATING ACTIONS (right side) ----- */
 function FloatingActions() {
+  const { publicHotline } = useSettings()
   return (
     <div className="fixed bottom-6 end-4 z-40 flex flex-col gap-2.5">
       <a
-        href={HOTLINE_TEL}
+        href={hotlineTel(publicHotline)}
         aria-label="Call"
         className="size-12 rounded-full bg-green-500 hover:bg-green-600 grid place-items-center text-white shadow-lg shadow-black/20 transition-colors"
       >
         <Phone className="size-5" />
       </a>
       <a
-        href={WHATSAPP_URL}
+        href={hotlineWhatsapp(publicHotline)}
         aria-label="WhatsApp"
         className="size-12 rounded-full bg-green-500 hover:bg-green-600 grid place-items-center text-white shadow-lg shadow-black/20 transition-colors"
       >

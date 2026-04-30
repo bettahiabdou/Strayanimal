@@ -298,6 +298,26 @@ export const api = {
       body,
     )
   },
+
+  /* ───────── Platform settings (commune contact info) ───────── */
+
+  /**
+   * Public — no auth needed. The citizen site reads this on load to
+   * render hotline / email / address / hours.
+   */
+  async getSettings(): Promise<{ settings: PlatformSettings }> {
+    return request<{ settings: PlatformSettings }>('GET', '/settings', undefined, {
+      // public route → don't try to silent-refresh on 401 (there's no auth here)
+      skipAuthRefresh: true,
+    })
+  },
+
+  /** Auth required (ADMIN / SUPERVISOR). Partial update. */
+  async updateSettings(
+    input: Partial<Omit<PlatformSettings, 'updatedAt'>>,
+  ): Promise<{ settings: PlatformSettings }> {
+    return request<{ settings: PlatformSettings }>('PATCH', '/settings', input)
+  },
 }
 
 /* ───────── Dashboard query/response types ───────── */
@@ -432,6 +452,19 @@ export type ApiMissionUpdated = {
   onSiteAt: string | null
   closedAt: string | null
   fieldNote: string | null
+}
+
+/* ───────── Platform settings ───────── */
+
+export type PlatformSettings = {
+  communeName: string
+  serviceTitle: string
+  publicHotline: string
+  internalHotline: string | null
+  publicEmail: string
+  address: string
+  openingHours: string
+  updatedAt: string
 }
 
 export type ReportStats = {

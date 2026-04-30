@@ -277,3 +277,23 @@ model AuditEvent {
   @@index([userId])
   @@index([category])
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Platform settings (singleton row, id = "platform")
+//
+// Holds the commune-level config that the citizen-facing site reads
+// (hotline, email, address, hours) and the dashboard's Settings screen
+// edits. Singleton pattern: there's always exactly one row.
+// ─────────────────────────────────────────────────────────────────
+
+model Setting {
+  id              String   @id // always "platform"
+  communeName     String
+  serviceTitle    String
+  publicHotline   String // display format, e.g. "0524 88 24 87"
+  internalHotline String?
+  publicEmail     String
+  address         String
+  openingHours    String   @db.Text
+  updatedAt       DateTime @updatedAt
+}

@@ -10,6 +10,7 @@ import { reportsRouter } from './routes/reports.js'
 import { mediaRouter } from './routes/media.js'
 import { teamsRouter } from './routes/teams.js'
 import { missionsRouter } from './routes/missions.js'
+import { settingsRouter } from './routes/settings.js'
 import { errorHandler } from './middleware/error.js'
 
 const app = express()
@@ -63,6 +64,7 @@ app.use('/auth', authRouter)
 app.use('/reports', reportsRouter)
 app.use('/teams', teamsRouter)
 app.use('/missions', missionsRouter)
+app.use('/settings', settingsRouter)
 app.use('/media', mediaRouter)
 
 /* ───────── 404 */

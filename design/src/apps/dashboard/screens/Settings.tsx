@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Save,
@@ -9,11 +9,100 @@ import {
   AlertTriangle,
   Check,
   ChevronRight,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react'
+import { api, ApiError, type PlatformSettings } from '@/lib/api'
 import { cn } from '@/design-system/cn'
+
+type FormValues = Omit<PlatformSettings, 'updatedAt'>
+
+const EMPTY: FormValues = {
+  communeName: '',
+  serviceTitle: '',
+  publicHotline: '',
+  internalHotline: '',
+  publicEmail: '',
+  address: '',
+  openingHours: '',
+}
 
 export function Settings() {
   const { t } = useTranslation()
+  const [original, setOriginal] = useState<FormValues | null>(null)
+  const [values, setValues] = useState<FormValues>(EMPTY)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [savedAt, setSavedAt] = useState<Date | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  // Load on mount.
+  useEffect(() => {
+    let cancelled = false
+    api
+      .getSettings()
+      .then(({ settings }) => {
+        if (cancelled) return
+        const v: FormValues = {
+          communeName: settings.communeName,
+          serviceTitle: settings.serviceTitle,
+          publicHotline: settings.publicHotline,
+          internalHotline: settings.internalHotline ?? '',
+          publicEmail: settings.publicEmail,
+          address: settings.address,
+          openingHours: settings.openingHours,
+        }
+        setValues(v)
+        setOriginal(v)
+      })
+      .catch((e) => {
+        if (!cancelled) setLoadError(e instanceof ApiError ? e.message : 'Connexion impossible.')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  function update<K extends keyof FormValues>(key: K, val: FormValues[K]) {
+    setValues((cur) => ({ ...cur, [key]: val }))
+  }
+
+  // Compute the diff so we only send changed keys.
+  const dirty = original
+    ? (Object.keys(values) as Array<keyof FormValues>).some((k) => values[k] !== original[k])
+    : false
+
+  async function handleSave() {
+    if (!original || !dirty) return
+    setSaving(true)
+    setSaveError(null)
+    try {
+      const patch: Partial<FormValues> = {}
+      ;(Object.keys(values) as Array<keyof FormValues>).forEach((k) => {
+        if (values[k] !== original[k]) {
+          ;(patch as Record<string, unknown>)[k] = values[k]
+        }
+      })
+      const { settings } = await api.updateSettings(patch)
+      const v: FormValues = {
+        communeName: settings.communeName,
+        serviceTitle: settings.serviceTitle,
+        publicHotline: settings.publicHotline,
+        internalHotline: settings.internalHotline ?? '',
+        publicEmail: settings.publicEmail,
+        address: settings.address,
+        openingHours: settings.openingHours,
+      }
+      setOriginal(v)
+      setValues(v)
+      setSavedAt(new Date())
+    } catch (e) {
+      setSaveError(e instanceof ApiError ? e.message : 'Échec de la sauvegarde.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div className="space-y-6 max-w-[1200px]">
       <div className="flex items-end justify-between gap-4 flex-wrap">
@@ -23,13 +112,44 @@ export function Settings() {
           </h1>
           <p className="mt-1.5 text-sm text-gray-600">{t('dashboard.settings.subtitle')}</p>
         </div>
-        <button className="btn-square btn-square-red">
-          <Save className="size-4" />
-          {t('dashboard.settings.saveAll')}
-        </button>
+        <div className="flex items-center gap-3">
+          {savedAt && !dirty && (
+            <span className="text-xs text-emerald-700 inline-flex items-center gap-1">
+              <Check className="size-3.5" /> Enregistré
+            </span>
+          )}
+          <button
+            onClick={handleSave}
+            disabled={saving || !dirty || !original}
+            className="btn-square btn-square-red disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            {t('dashboard.settings.saveAll')}
+          </button>
+        </div>
       </div>
 
-      <GeneralSection />
+      {loadError && (
+        <div
+          role="alert"
+          className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-800 rounded-md p-3 text-sm"
+        >
+          <AlertCircle className="size-4 mt-0.5 shrink-0" />
+          <span>{loadError}</span>
+        </div>
+      )}
+
+      {saveError && (
+        <div
+          role="alert"
+          className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-800 rounded-md p-3 text-sm"
+        >
+          <AlertCircle className="size-4 mt-0.5 shrink-0" />
+          <span>{saveError}</span>
+        </div>
+      )}
+
+      <GeneralSection values={values} update={update} loading={!original && !loadError} />
       <NotificationsSection />
       <RetentionSection />
       <IntegrationsSection />
@@ -114,7 +234,15 @@ function Toggle({ label, defaultChecked = false }: { label: string; defaultCheck
   )
 }
 
-function GeneralSection() {
+function GeneralSection({
+  values,
+  update,
+  loading,
+}: {
+  values: FormValues
+  update: <K extends keyof FormValues>(key: K, val: FormValues[K]) => void
+  loading: boolean
+}) {
   const { t } = useTranslation()
   return (
     <SectionCard
@@ -122,37 +250,66 @@ function GeneralSection() {
       title={t('dashboard.settings.general.title')}
       subtitle={t('dashboard.settings.general.subtitle')}
     >
-      <div className="grid md:grid-cols-2 gap-5">
-        <Field label={t('dashboard.settings.general.communeName')}>
-          <input
-            className="input"
-            defaultValue="Groupement des communes territoriales — Ouarzazate"
-          />
-        </Field>
-        <Field label={t('dashboard.settings.general.serviceTitle')}>
-          <input className="input" defaultValue="Service de protection des animaux errants" />
-        </Field>
-        <Field label={t('dashboard.settings.general.publicHotline')}>
-          <input className="input font-mono" defaultValue="0524 88 24 87" />
-        </Field>
-        <Field label={t('dashboard.settings.general.internalHotline')}>
-          <input className="input font-mono" defaultValue="0524 88 50 12" />
-        </Field>
-        <Field label={t('dashboard.settings.general.publicEmail')}>
-          <input className="input" defaultValue="info@animaux-ouarzazate.ma" type="email" />
-        </Field>
-        <Field label={t('dashboard.settings.general.address')}>
-          <input className="input" defaultValue="Avenue Mohammed V, Ouarzazate 45000" />
-        </Field>
-        <div className="md:col-span-2">
-          <Field label={t('dashboard.settings.general.openingHours')}>
-            <textarea
-              className="textarea"
-              defaultValue={'Lundi – Vendredi : 08h30 – 17h00\nWeek-end : urgences uniquement'}
+      {loading ? (
+        <div className="grid place-items-center py-12 text-gray-400">
+          <Loader2 className="size-5 animate-spin" />
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 gap-5">
+          <Field label={t('dashboard.settings.general.communeName')}>
+            <input
+              className="input"
+              value={values.communeName}
+              onChange={(e) => update('communeName', e.target.value)}
             />
           </Field>
+          <Field label={t('dashboard.settings.general.serviceTitle')}>
+            <input
+              className="input"
+              value={values.serviceTitle}
+              onChange={(e) => update('serviceTitle', e.target.value)}
+            />
+          </Field>
+          <Field label={t('dashboard.settings.general.publicHotline')}>
+            <input
+              className="input font-mono"
+              value={values.publicHotline}
+              onChange={(e) => update('publicHotline', e.target.value)}
+            />
+          </Field>
+          <Field label={t('dashboard.settings.general.internalHotline')}>
+            <input
+              className="input font-mono"
+              value={values.internalHotline ?? ''}
+              onChange={(e) => update('internalHotline', e.target.value)}
+            />
+          </Field>
+          <Field label={t('dashboard.settings.general.publicEmail')}>
+            <input
+              className="input"
+              type="email"
+              value={values.publicEmail}
+              onChange={(e) => update('publicEmail', e.target.value)}
+            />
+          </Field>
+          <Field label={t('dashboard.settings.general.address')}>
+            <input
+              className="input"
+              value={values.address}
+              onChange={(e) => update('address', e.target.value)}
+            />
+          </Field>
+          <div className="md:col-span-2">
+            <Field label={t('dashboard.settings.general.openingHours')}>
+              <textarea
+                className="textarea"
+                value={values.openingHours}
+                onChange={(e) => update('openingHours', e.target.value)}
+              />
+            </Field>
+          </div>
         </div>
-      </div>
+      )}
     </SectionCard>
   )
 }
