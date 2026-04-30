@@ -77,13 +77,19 @@ export function Sidebar({ mobileOpen, onMobileClose }: Props) {
 
   return (
     <>
-      {/* Backdrop — only ever rendered on <lg, only when the drawer is open */}
+      {/* Backdrop — only ever rendered on <lg, only when the drawer is open.
+       *
+       * z-[1100] so it sits above Leaflet's internal chrome (controls = 1000,
+       * popups = 700, tooltips = 650). Without this the map's +/- buttons,
+       * its © OpenStreetMap bar, and even the tile pane render *over* the
+       * drawer when it's opened from /dashboard/map on mobile.
+       */}
       <button
         type="button"
         aria-label={t('dashboard.sidebar.closeMenu')}
         onClick={onMobileClose}
         className={cn(
-          'lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px] transition-opacity',
+          'lg:hidden fixed inset-0 z-[1100] bg-black/50 backdrop-blur-[1px] transition-opacity',
           mobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none',
         )}
       />
@@ -93,6 +99,8 @@ export function Sidebar({ mobileOpen, onMobileClose }: Props) {
        * On lg+: sticky left rail, always visible.
        * On <lg: fixed off-canvas drawer, slid out by default, slides in when
        *         mobileOpen is true. The translate uses RTL-aware logic.
+       *         z-[1200] so the drawer panel itself sits above Leaflet's
+       *         chrome — same reason as the backdrop above.
        */}
       <aside
         className={cn(
@@ -100,7 +108,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: Props) {
           // Desktop layout — sticky in the page flow
           'lg:sticky lg:top-0 lg:h-svh',
           // Mobile layout — fixed drawer
-          'fixed inset-y-0 start-0 z-50 transition-transform duration-200 lg:transition-none',
+          'fixed inset-y-0 start-0 z-[1200] transition-transform duration-200 lg:transition-none',
           mobileOpen
             ? 'translate-x-0'
             : '-translate-x-full rtl:translate-x-full lg:translate-x-0 rtl:lg:translate-x-0',
