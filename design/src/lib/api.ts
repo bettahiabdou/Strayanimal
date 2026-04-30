@@ -68,6 +68,8 @@ export type SubmitReportInput = {
   citizenName?: string
   citizenPhone?: string
   preferredLocale?: 'fr' | 'ar'
+  /** Photos as data URLs (data:image/jpeg;base64,...). Up to 3. */
+  photos?: string[]
 }
 
 export type SubmittedReport = {

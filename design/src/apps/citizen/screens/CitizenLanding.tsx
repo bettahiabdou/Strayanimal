@@ -7,7 +7,6 @@ import {
   MessageCircle,
   ChevronRight,
   ChevronLeft,
-  Upload,
   MapPin,
   CheckCircle2,
   AlertCircle,
@@ -17,6 +16,8 @@ import { LanguageSwitcher } from '@/design-system/LanguageSwitcher'
 import { CommuneLogo } from '@/design-system/CommuneLogo'
 import { cn } from '@/design-system/cn'
 import { api, ApiError } from '@/lib/api'
+import { MapPicker } from '../components/MapPicker'
+import { PhotoPicker } from '../components/PhotoPicker'
 
 const HOTLINE_DISPLAY = '0524 88 24 87'
 const HOTLINE_TEL = 'tel:+212524882487'
@@ -361,12 +362,16 @@ const TOTAL_STEPS = 2
 
 type Category = 'AGGRESSIVE' | 'INJURED' | 'STRAY'
 type AnimalType = 'DOG' | 'CAT' | 'OTHER'
+type Coords = { lat: number; lng: number }
 type FormState = {
   category: Category
   animalType: AnimalType
   animalCount: number
   comment: string
   address: string
+  coords: Coords | null
+  /** Photos as data URLs (data:image/jpeg;base64,...). */
+  photos: string[]
   contactName: string
   contactPhone: string
 }
@@ -377,22 +382,10 @@ const INITIAL: FormState = {
   animalCount: 1,
   comment: '',
   address: '',
+  coords: null,
+  photos: [],
   contactName: '',
   contactPhone: '',
-}
-
-const OUARZAZATE_FALLBACK = { latitude: 30.92, longitude: -6.91 }
-
-/** Browser geolocation with a graceful fallback to Ouarzazate centre. */
-async function getCoords(): Promise<{ latitude: number; longitude: number }> {
-  if (!('geolocation' in navigator)) return OUARZAZATE_FALLBACK
-  return new Promise((resolve) => {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
-      () => resolve(OUARZAZATE_FALLBACK),
-      { timeout: 4000, enableHighAccuracy: false },
-    )
-  })
 }
 
 function ReportForm() {
@@ -414,28 +407,40 @@ function ReportForm() {
   }
 
   async function onSubmit() {
-    if (!data.address.trim() || !data.comment.trim()) {
-      setError('Veuillez remplir l’adresse et la description.')
-      setStep(data.address.trim() ? 1 : 2)
+    // Step-1 fields
+    if (!data.comment.trim()) {
+      setError('Veuillez décrire la situation.')
+      setStep(1)
+      return
+    }
+    // Step-2 fields
+    if (!data.address.trim()) {
+      setError('Veuillez préciser l’adresse.')
+      setStep(2)
+      return
+    }
+    if (!data.coords) {
+      setError('Position introuvable. Cliquez sur la carte pour placer un repère.')
+      setStep(2)
       return
     }
 
     setError(null)
     setSubmitting(true)
     try {
-      const coords = await getCoords()
       const report = await api.submitReport({
         category: data.category,
         animalType: data.animalType,
         animalCount: data.animalCount,
-        latitude: coords.latitude,
-        longitude: coords.longitude,
+        latitude: data.coords.lat,
+        longitude: data.coords.lng,
         address: data.address.trim(),
-        zone: data.address.trim().split(',')[0]?.trim() || data.address.trim(), // best-effort zone
+        zone: data.address.trim().split(',')[0]?.trim() || data.address.trim(),
         comment: data.comment.trim(),
         citizenName: data.contactName.trim() || undefined,
         citizenPhone: data.contactPhone.trim() || undefined,
         preferredLocale: i18n.language === 'ar' ? 'ar' : 'fr',
+        photos: data.photos.length ? data.photos : undefined,
       })
       setSubmitted(report.publicRef)
     } catch (err) {
@@ -585,14 +590,13 @@ function Step1({ data, update }: StepProps) {
           />
         </Field>
       </div>
-      <Field label={t('citizen.form.fields.photo')} hint={t('citizen.form.fields.photoHint')}>
-        <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-300 hover:border-red-500 rounded-lg py-10 cursor-pointer transition-colors text-gray-500 hover:text-red-600">
-          <Upload className="size-7" />
-          <span className="text-sm font-medium">{t('citizen.form.fields.photoUpload')}</span>
-          <span className="text-[10px] text-gray-400">(bientôt disponible)</span>
-          <input type="file" accept="image/*" className="sr-only" disabled />
-        </label>
-      </Field>
+      <PhotoPicker
+        label={t('citizen.form.fields.photo')}
+        uploadLabel={t('citizen.form.fields.photoUpload')}
+        hint={t('citizen.form.fields.photoHint')}
+        value={data.photos}
+        onChange={(next) => update('photos', next)}
+      />
       <Field label={t('citizen.form.fields.description')}>
         <textarea
           className="textarea"
@@ -622,6 +626,11 @@ function Step2({ data, update }: StepProps) {
           />
         </div>
       </Field>
+
+      <Field label="Position sur la carte">
+        <MapPicker value={data.coords} onChange={(c) => update('coords', c)} />
+      </Field>
+
       <div className="grid sm:grid-cols-2 gap-5 pt-3 border-t border-gray-200">
         <Field label={t('citizen.form.fields.contactName')}>
           <input

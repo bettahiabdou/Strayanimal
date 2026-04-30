@@ -33,12 +33,34 @@ export type SubmitReportInput = {
   citizenName?: string
   citizenPhone?: string
   preferredLocale?: Locale
-  /** photoKeys reserved for Sprint 1.6 (R2). Ignored for now. */
-  photoKeys?: string[]
+  /**
+   * Photos as data URLs (e.g. "data:image/jpeg;base64,/9j/4AAQ…").
+   * Stored inline in MediaAsset.data for Phase 1.
+   */
+  photos?: string[]
 
   // Forensics for audit
   ip?: string
   userAgent?: string
+}
+
+/* ───────── Image helpers ───────── */
+
+const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp']
+const MAX_PHOTO_BYTES = 4 * 1024 * 1024 // 4 MB after base64 decode
+
+function decodeDataUrl(dataUrl: string): { contentType: string; bytes: Buffer } {
+  const m = dataUrl.match(/^data:([a-zA-Z0-9/+.-]+);base64,(.+)$/)
+  if (!m) throw new Error('Invalid data URL')
+  const contentType = m[1]!.toLowerCase()
+  if (!ALLOWED_MIME.includes(contentType)) {
+    throw new Error(`Unsupported image type: ${contentType}`)
+  }
+  const bytes = Buffer.from(m[2]!, 'base64')
+  if (bytes.length > MAX_PHOTO_BYTES) {
+    throw new Error(`Image too large (max ${Math.round(MAX_PHOTO_BYTES / 1024 / 1024)} MB)`)
+  }
+  return { contentType, bytes }
 }
 
 export type SubmittedReport = {
@@ -53,6 +75,16 @@ export type SubmittedReport = {
 export async function submitCitizenReport(input: SubmitReportInput): Promise<SubmittedReport> {
   // Heuristic: aggressive cases are urgent by default; injured is also flagged urgent.
   const isUrgent = input.category === 'AGGRESSIVE' || input.category === 'INJURED'
+
+  // Decode photos up-front so we fail before touching the DB on bad input.
+  const photoBuffers =
+    input.photos?.map((d, i) => {
+      try {
+        return decodeDataUrl(d)
+      } catch (e) {
+        throw new Error(`Photo ${i + 1}: ${(e as Error).message}`)
+      }
+    }) ?? []
 
   // Try a few times in case of unique-ref collision.
   let lastErr: unknown
@@ -76,6 +108,18 @@ export async function submitCitizenReport(input: SubmitReportInput): Promise<Sub
           citizenName: input.citizenName,
           citizenPhone: input.citizenPhone,
           preferredLocale: input.preferredLocale ?? 'fr',
+          // Inline photos as MediaAsset rows (Phase 1: bytes in DB).
+          media: photoBuffers.length
+            ? {
+                create: photoBuffers.map((p) => ({
+                  purpose: 'CITIZEN_REPORT' as const,
+                  contentType: p.contentType,
+                  bytes: p.bytes.length,
+                  data: p.bytes,
+                  storageKey: null,
+                })),
+              }
+            : undefined,
         },
         select: { id: true, publicRef: true, status: true, receivedAt: true },
       })

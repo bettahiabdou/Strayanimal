@@ -235,8 +235,14 @@ model MediaAsset {
   report      Report       @relation(fields: [reportId], references: [id], onDelete: Cascade)
   reportId    String
   purpose     MediaPurpose
-  storageKey  String       // R2 object key
+
+  // Storage strategy:
+  //   - Phase 1 (now): bytes stored inline in `data`. storageKey = "db:<cuid>".
+  //   - Phase 2 (Sprint 1.6 v2): move to Cloudflare R2. storageKey = R2 object key, data = NULL.
+  storageKey  String?      // R2 object key when external; "db:<id>" when inline
+  data        Bytes?       // raw bytes when stored in DB (Phase 1)
   url         String?      // optional public URL if bucket is public
+
   contentType String
   bytes       Int
   width       Int?

@@ -23,7 +23,11 @@ const submitSchema = z.object({
   citizenName: z.string().max(200).optional(),
   citizenPhone: z.string().max(40).optional(),
   preferredLocale: z.enum(['fr', 'ar']).optional(),
-  photoKeys: z.array(z.string()).max(5).optional(),
+  /** photos as data URLs (data:image/jpeg;base64,...). Up to 3 per submission. */
+  photos: z
+    .array(z.string().regex(/^data:image\/(jpeg|png|webp);base64,/))
+    .max(3)
+    .optional(),
 })
 
 reportsRouter.post(

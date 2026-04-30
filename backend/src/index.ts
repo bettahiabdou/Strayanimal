@@ -7,6 +7,7 @@ import { logger } from './lib/logger.js'
 import { prisma } from './lib/db.js'
 import { authRouter } from './routes/auth.js'
 import { reportsRouter } from './routes/reports.js'
+import { mediaRouter } from './routes/media.js'
 import { errorHandler } from './middleware/error.js'
 
 const app = express()
@@ -38,7 +39,9 @@ app.use(
   }),
 )
 
-app.use(express.json({ limit: '1mb' }))
+// Body limit bumped to 5mb to accommodate base64-encoded citizen photos
+// (clients resize to ~1280px JPEG q0.8 → typically <300kb after base64 inflation).
+app.use(express.json({ limit: '5mb' }))
 app.use(cookieParser())
 app.use(pinoHttp({ logger }))
 
@@ -56,6 +59,7 @@ app.get('/health', async (_req: Request, res: Response) => {
 /* ───────── API routes */
 app.use('/auth', authRouter)
 app.use('/reports', reportsRouter)
+app.use('/media', mediaRouter)
 
 /* ───────── 404 */
 app.use((_req: Request, res: Response) => {
