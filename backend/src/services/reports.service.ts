@@ -166,3 +166,273 @@ export async function submitCitizenReport(input: SubmitReportInput): Promise<Sub
   }
   throw lastErr ?? new Error('Failed to generate a unique publicRef after retries.')
 }
+
+/* ─────────────────────────── List ─────────────────────────── */
+
+export type ListReportsInput = {
+  status?: ReportStatus | 'ALL'
+  isUrgent?: boolean
+  zone?: string
+  search?: string
+  page?: number
+  pageSize?: number
+}
+
+export async function listReports(input: ListReportsInput = {}) {
+  const page = Math.max(1, input.page ?? 1)
+  const pageSize = Math.min(100, Math.max(1, input.pageSize ?? 25))
+  const where: Prisma.ReportWhereInput = {}
+
+  if (input.status && input.status !== 'ALL') where.status = input.status
+  if (typeof input.isUrgent === 'boolean') where.isUrgent = input.isUrgent
+  if (input.zone) where.zone = { contains: input.zone, mode: 'insensitive' }
+  if (input.search) {
+    const q = input.search
+    where.OR = [
+      { publicRef: { contains: q, mode: 'insensitive' } },
+      { address: { contains: q, mode: 'insensitive' } },
+      { zone: { contains: q, mode: 'insensitive' } },
+      { citizenName: { contains: q, mode: 'insensitive' } },
+    ]
+  }
+
+  const [rows, total] = await Promise.all([
+    prisma.report.findMany({
+      where,
+      orderBy: [{ isUrgent: 'desc' }, { receivedAt: 'desc' }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true,
+        publicRef: true,
+        category: true,
+        animalType: true,
+        animalCount: true,
+        status: true,
+        isUrgent: true,
+        zone: true,
+        address: true,
+        comment: true,
+        latitude: true,
+        longitude: true,
+        receivedAt: true,
+        citizenName: true,
+        citizenPhone: true,
+        triagedBy: { select: { id: true, name: true } },
+        assignedBy: { select: { id: true, name: true } },
+        mission: {
+          select: {
+            id: true,
+            status: true,
+            team: { select: { id: true, name: true } },
+          },
+        },
+        media: {
+          select: { id: true, contentType: true },
+          take: 1,
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    }),
+    prisma.report.count({ where }),
+  ])
+
+  return {
+    reports: rows.map(serializeReportRow),
+    page,
+    pageSize,
+    total,
+  }
+}
+
+/* ─────────────────────────── Detail ───────────────────────── */
+
+export async function getReportByRef(publicRef: string) {
+  const r = await prisma.report.findUnique({
+    where: { publicRef },
+    select: {
+      id: true,
+      publicRef: true,
+      source: true,
+      category: true,
+      animalType: true,
+      animalCount: true,
+      status: true,
+      isUrgent: true,
+      zone: true,
+      address: true,
+      comment: true,
+      latitude: true,
+      longitude: true,
+      receivedAt: true,
+      resolvedAt: true,
+      citizenName: true,
+      citizenPhone: true,
+      preferredLocale: true,
+      rejectReason: true,
+      triagedAt: true,
+      assignedAt: true,
+      triagedBy: { select: { id: true, name: true } },
+      assignedBy: { select: { id: true, name: true } },
+      mission: {
+        select: {
+          id: true,
+          status: true,
+          agentNote: true,
+          fieldNote: true,
+          assignedAt: true,
+          enRouteAt: true,
+          onSiteAt: true,
+          closedAt: true,
+          outcome: true,
+          durationMin: true,
+          team: { select: { id: true, name: true, zone: true } },
+        },
+      },
+      media: {
+        select: { id: true, contentType: true, purpose: true, createdAt: true },
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+  })
+  return r
+}
+
+/* ─────────────────────────── Stats ────────────────────────── */
+
+export async function getReportStats() {
+  const startOfDay = new Date()
+  startOfDay.setHours(0, 0, 0, 0)
+  const startOfWeek = new Date()
+  startOfWeek.setDate(startOfWeek.getDate() - 7)
+
+  const [pendingTriage, inProgress, resolvedToday, totalThisWeek, byCategory, recentActivity] =
+    await Promise.all([
+      prisma.report.count({ where: { status: 'PENDING' } }),
+      prisma.report.count({
+        where: { status: { in: ['APPROVED', 'ASSIGNED', 'IN_PROGRESS'] } },
+      }),
+      prisma.report.count({
+        where: { status: 'RESOLVED', resolvedAt: { gte: startOfDay } },
+      }),
+      prisma.report.count({ where: { receivedAt: { gte: startOfWeek } } }),
+      prisma.report.groupBy({
+        by: ['category'],
+        _count: { _all: true },
+      }),
+      prisma.auditEvent.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          createdAt: true,
+          action: true,
+          target: true,
+          category: true,
+          user: { select: { name: true, role: true } },
+        },
+      }),
+    ])
+
+  // Average mission duration this week (closed only).
+  const closedMissions = await prisma.mission.findMany({
+    where: { closedAt: { gte: startOfWeek }, durationMin: { not: null } },
+    select: { durationMin: true },
+  })
+  const avgResponseMinutes = closedMissions.length
+    ? Math.round(
+        closedMissions.reduce((s, m) => s + (m.durationMin ?? 0), 0) / closedMissions.length,
+      )
+    : null
+
+  // Hot zones (top 5 by submissions in the last 7d).
+  const hotZonesRaw = await prisma.report.groupBy({
+    by: ['zone'],
+    where: { receivedAt: { gte: startOfWeek } },
+    _count: { _all: true },
+    orderBy: { _count: { zone: 'desc' } },
+    take: 5,
+  })
+
+  return {
+    pendingTriage,
+    inProgress,
+    resolvedToday,
+    totalThisWeek,
+    avgResponseMinutes,
+    byCategory: byCategory.map((c) => ({ category: c.category, count: c._count._all })),
+    hotZones: hotZonesRaw.map((z) => ({ zone: z.zone, count: z._count._all })),
+    recentActivity: recentActivity.map((a) => ({
+      id: a.id,
+      at: a.createdAt.toISOString(),
+      action: a.action,
+      target: a.target,
+      category: a.category,
+      who: a.user?.name ?? 'Système',
+      role: a.user?.role ?? null,
+    })),
+  }
+}
+
+/* ─────────────────────────── Serialization ────────────────── */
+
+type ListRowSelect = Awaited<ReturnType<typeof listRowSelect>>
+function listRowSelect() {
+  return prisma.report.findFirst({
+    select: {
+      id: true,
+      publicRef: true,
+      category: true,
+      animalType: true,
+      animalCount: true,
+      status: true,
+      isUrgent: true,
+      zone: true,
+      address: true,
+      comment: true,
+      latitude: true,
+      longitude: true,
+      receivedAt: true,
+      citizenName: true,
+      citizenPhone: true,
+      triagedBy: { select: { id: true, name: true } },
+      assignedBy: { select: { id: true, name: true } },
+      mission: {
+        select: {
+          id: true,
+          status: true,
+          team: { select: { id: true, name: true } },
+        },
+      },
+      media: {
+        select: { id: true, contentType: true },
+        take: 1,
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+  })
+}
+
+function serializeReportRow(r: NonNullable<ListRowSelect>) {
+  return {
+    id: r.id,
+    publicRef: r.publicRef,
+    category: r.category,
+    animalType: r.animalType,
+    animalCount: r.animalCount,
+    status: r.status,
+    isUrgent: r.isUrgent,
+    zone: r.zone,
+    address: r.address,
+    comment: r.comment,
+    latitude: r.latitude,
+    longitude: r.longitude,
+    receivedAt: r.receivedAt.toISOString(),
+    citizenName: r.citizenName,
+    citizenPhone: r.citizenPhone,
+    agent: r.triagedBy ?? r.assignedBy ?? null,
+    team: r.mission?.team ?? null,
+    missionStatus: r.mission?.status ?? null,
+    thumbnailUrl: r.media[0] ? `/media/${r.media[0].id}` : null,
+  }
+}

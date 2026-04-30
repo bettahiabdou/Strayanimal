@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import {
@@ -7,18 +8,12 @@ import {
   Timer,
   ArrowUpRight,
   Flame,
-  TrendingUp,
-  TrendingDown,
-  Minus,
   ChevronRight,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react'
-import {
-  KPI_VALUES,
-  HOT_ZONES,
-  ACTIVITY_FEED,
-  MOCK_REPORTS,
-  type ReportCategory,
-} from '../data/mockReports'
+import { api, type ReportStats, ApiError } from '@/lib/api'
+import { adaptReports, type Report, type ReportCategory } from '../data/adapter'
 import { cn } from '@/design-system/cn'
 
 const CATEGORY_TONE: Record<ReportCategory, string> = {
@@ -36,6 +31,24 @@ function timeAgo(iso: string) {
   return `il y a ${Math.floor(h / 24)} j`
 }
 
+function fmtMin(n: number | null) {
+  if (n == null) return '—'
+  const h = Math.floor(n / 60)
+  const m = n % 60
+  return h ? `${h}h ${String(m).padStart(2, '0')}` : `${m} min`
+}
+
+const ACTION_LABELS: Record<string, (target: string | null) => string> = {
+  'report.submit': (t) => `a soumis un nouveau signalement (${t ?? '?'})`,
+  'report.approve': (t) => `a validé ${t ?? 'un signalement'}`,
+  'report.reject': (t) => `a rejeté ${t ?? 'un signalement'}`,
+  'report.assign': (t) => `a assigné ${t ?? 'un signalement'}`,
+  'login.success': () => `s'est connecté(e)`,
+  'login.failed': () => `connexion échouée`,
+  'login.blocked': () => `connexion bloquée`,
+  logout: () => `s'est déconnecté(e)`,
+}
+
 export function Overview() {
   const { t } = useTranslation()
   const today = new Date().toLocaleDateString('fr-FR', {
@@ -43,7 +56,28 @@ export function Overview() {
     month: 'long',
     year: 'numeric',
   })
-  const pending = MOCK_REPORTS.filter((r) => r.status === 'pending')
+
+  const [stats, setStats] = useState<ReportStats | null>(null)
+  const [pending, setPending] = useState<Report[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setError(null)
+    Promise.all([api.reportStats(), api.listReports({ status: 'PENDING', pageSize: 5, page: 1 })])
+      .then(([s, l]) => {
+        if (cancelled) return
+        setStats(s.stats)
+        setPending(adaptReports(l.reports))
+      })
+      .catch((e) => {
+        if (cancelled) return
+        setError(e instanceof ApiError ? e.message : 'Connexion impossible.')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <div className="space-y-8 max-w-[1400px]">
@@ -64,39 +98,49 @@ export function Overview() {
         </Link>
       </div>
 
+      {error && (
+        <div
+          role="alert"
+          className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-800 rounded-md p-3 text-sm"
+        >
+          <AlertCircle className="size-4 mt-0.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label={t('dashboard.overview.kpi.pendingTriage')}
-          value={KPI_VALUES.pendingTriage}
+          value={stats?.pendingTriage ?? '—'}
           icon={Inbox}
           tone="urgent"
-          delta="+3 depuis hier"
+          loading={!stats && !error}
         />
         <KpiCard
           label={t('dashboard.overview.kpi.inProgress')}
-          value={KPI_VALUES.inProgress}
+          value={stats?.inProgress ?? '—'}
           icon={Truck}
           tone="active"
-          delta="+5 cette semaine"
+          loading={!stats && !error}
         />
         <KpiCard
           label={t('dashboard.overview.kpi.resolvedToday')}
-          value={KPI_VALUES.resolvedToday}
+          value={stats?.resolvedToday ?? '—'}
           icon={CheckCircle2}
           tone="success"
-          delta="objectif 25"
+          loading={!stats && !error}
         />
         <KpiCard
           label={t('dashboard.overview.kpi.avgResponse')}
-          value={KPI_VALUES.avgResponse}
+          value={stats ? fmtMin(stats.avgResponseMinutes) : '—'}
           icon={Timer}
           tone="neutral"
-          delta="-12 min vs sem. dernière"
+          loading={!stats && !error}
         />
       </div>
 
-      {/* Two-column: Triage preview (left) + Hot zones / Activity (right) */}
+      {/* Two-column: Triage preview (left) + Hot zones (right) */}
       <div className="grid lg:grid-cols-3 gap-5">
         {/* Triage preview */}
         <section className="lg:col-span-2 bg-white border border-gray-200 rounded-md">
@@ -104,7 +148,9 @@ export function Overview() {
             <div>
               <h2 className="font-bold text-gray-900">{t('dashboard.overview.triageQueue')}</h2>
               <p className="text-xs text-gray-500 mt-0.5">
-                {pending.length} signalement{pending.length > 1 ? 's' : ''} en attente
+                {pending
+                  ? `${pending.length} signalement${pending.length > 1 ? 's' : ''} en attente`
+                  : '…'}
               </p>
             </div>
             <Link
@@ -115,44 +161,51 @@ export function Overview() {
               <ArrowUpRight className="size-4 rtl:rotate-90" />
             </Link>
           </div>
-          <ul className="divide-y divide-gray-200">
-            {pending.slice(0, 5).map((r) => (
-              <li
-                key={r.id}
-                className="px-5 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors"
-              >
-                <div className="size-12 rounded-md bg-gray-100 overflow-hidden shrink-0">
-                  <img src={r.photoUrl} alt="" className="size-full object-cover" loading="lazy" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span
-                      className={cn(
-                        'inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide rounded border px-1.5 py-0.5',
-                        CATEGORY_TONE[r.category],
-                      )}
-                    >
-                      {r.isUrgent && <span className="size-1.5 rounded-full bg-current" />}
-                      {t(`dashboard.category.${r.category}`)}
-                    </span>
-                    <span className="font-mono text-[11px] text-gray-400">{r.id}</span>
+          {!pending ? (
+            <div className="p-10 grid place-items-center text-gray-400">
+              <Loader2 className="size-5 animate-spin" />
+            </div>
+          ) : pending.length === 0 ? (
+            <p className="p-10 text-center text-sm text-gray-500">
+              Aucun signalement en attente — bon travail.
+            </p>
+          ) : (
+            <ul className="divide-y divide-gray-200">
+              {pending.slice(0, 5).map((r) => (
+                <li
+                  key={r.id}
+                  className="px-5 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="size-12 rounded-md bg-gray-100 overflow-hidden shrink-0">
+                    <img
+                      src={r.photoUrl}
+                      alt=""
+                      className="size-full object-cover"
+                      loading="lazy"
+                    />
                   </div>
-                  <p className="mt-1 text-sm font-semibold text-gray-900 truncate">{r.address}</p>
-                  <p className="text-xs text-gray-500 truncate">
-                    {r.zone} · {timeAgo(r.receivedAt)}
-                  </p>
-                </div>
-                <div className="hidden md:flex items-center gap-2">
-                  <button className="btn-square btn-square-outline h-9 px-3 text-xs">
-                    {t('dashboard.triage.card.reject')}
-                  </button>
-                  <button className="btn-square btn-square-red h-9 px-3 text-xs">
-                    {t('dashboard.triage.card.approve')}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className={cn(
+                          'inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide rounded border px-1.5 py-0.5',
+                          CATEGORY_TONE[r.category],
+                        )}
+                      >
+                        {r.isUrgent && <span className="size-1.5 rounded-full bg-current" />}
+                        {t(`dashboard.category.${r.category}`)}
+                      </span>
+                      <span className="font-mono text-[11px] text-gray-400">{r.id}</span>
+                    </div>
+                    <p className="mt-1 text-sm font-semibold text-gray-900 truncate">{r.address}</p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {r.zone} · {timeAgo(r.receivedAt)}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         {/* Hot zones */}
@@ -161,18 +214,25 @@ export function Overview() {
             <Flame className="size-4 text-red-600" />
             <h2 className="font-bold text-gray-900">{t('dashboard.overview.hotZones')}</h2>
           </div>
-          <ul className="divide-y divide-gray-200">
-            {HOT_ZONES.map((z, i) => (
-              <li key={z.name} className="px-5 py-3 flex items-center gap-3">
-                <span className="font-mono text-xs text-gray-400 w-5 shrink-0">0{i + 1}</span>
-                <span className="flex-1 text-sm font-semibold text-gray-800 truncate">
-                  {z.name}
-                </span>
-                <span className="font-mono text-sm text-gray-700">{z.count}</span>
-                <Trend value={z.trend} />
-              </li>
-            ))}
-          </ul>
+          {!stats ? (
+            <div className="p-10 grid place-items-center text-gray-400">
+              <Loader2 className="size-5 animate-spin" />
+            </div>
+          ) : stats.hotZones.length === 0 ? (
+            <p className="p-10 text-center text-sm text-gray-500">Aucune activité cette semaine.</p>
+          ) : (
+            <ul className="divide-y divide-gray-200">
+              {stats.hotZones.map((z, i) => (
+                <li key={z.zone} className="px-5 py-3 flex items-center gap-3">
+                  <span className="font-mono text-xs text-gray-400 w-5 shrink-0">0{i + 1}</span>
+                  <span className="flex-1 text-sm font-semibold text-gray-800 truncate">
+                    {z.zone}
+                  </span>
+                  <span className="font-mono text-sm text-gray-700">{z.count}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </div>
 
@@ -181,25 +241,51 @@ export function Overview() {
         <div className="border-b border-gray-200 px-5 py-4">
           <h2 className="font-bold text-gray-900">{t('dashboard.overview.recentActivity')}</h2>
         </div>
-        <ul className="divide-y divide-gray-200">
-          {ACTIVITY_FEED.map((a, i) => (
-            <li key={i} className="px-5 py-3 flex items-start gap-4 text-sm">
-              <span className="font-mono text-xs text-gray-400 w-12 shrink-0 mt-0.5">{a.time}</span>
-              <span
-                className={cn(
-                  'size-2 rounded-full mt-2 shrink-0',
-                  a.tone === 'urgent' && 'bg-red-500',
-                  a.tone === 'success' && 'bg-emerald-500',
-                  a.tone === 'normal' && 'bg-olive-500',
-                  a.tone === 'muted' && 'bg-gray-400',
-                )}
-              />
-              <p className="text-gray-700 leading-snug">
-                <strong className="text-gray-900 font-semibold">{a.who}</strong> {a.what}
-              </p>
-            </li>
-          ))}
-        </ul>
+        {!stats ? (
+          <div className="p-10 grid place-items-center text-gray-400">
+            <Loader2 className="size-5 animate-spin" />
+          </div>
+        ) : stats.recentActivity.length === 0 ? (
+          <p className="p-10 text-center text-sm text-gray-500">Aucune activité récente.</p>
+        ) : (
+          <ul className="divide-y divide-gray-200">
+            {stats.recentActivity.map((a) => {
+              const time = new Date(a.at).toLocaleTimeString('fr-FR', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+              const tone =
+                a.action === 'login.failed' || a.action === 'report.submit'
+                  ? 'urgent'
+                  : a.action === 'report.resolve' || a.action.endsWith('.success')
+                    ? 'success'
+                    : a.action === 'report.reject' || a.action === 'logout'
+                      ? 'muted'
+                      : 'normal'
+              const labelFn = ACTION_LABELS[a.action]
+              const what = labelFn ? labelFn(a.target) : a.action
+              return (
+                <li key={a.id} className="px-5 py-3 flex items-start gap-4 text-sm">
+                  <span className="font-mono text-xs text-gray-400 w-12 shrink-0 mt-0.5">
+                    {time}
+                  </span>
+                  <span
+                    className={cn(
+                      'size-2 rounded-full mt-2 shrink-0',
+                      tone === 'urgent' && 'bg-red-500',
+                      tone === 'success' && 'bg-emerald-500',
+                      tone === 'normal' && 'bg-olive-500',
+                      tone === 'muted' && 'bg-gray-400',
+                    )}
+                  />
+                  <p className="text-gray-700 leading-snug">
+                    <strong className="text-gray-900 font-semibold">{a.who}</strong> {what}
+                  </p>
+                </li>
+              )
+            })}
+          </ul>
+        )}
       </section>
     </div>
   )
@@ -212,13 +298,13 @@ function KpiCard({
   value,
   icon: Icon,
   tone,
-  delta,
+  loading,
 }: {
   label: string
   value: string | number
   icon: typeof Inbox
   tone: KpiTone
-  delta: string
+  loading?: boolean
 }) {
   const toneStyles: Record<KpiTone, { iconBg: string; iconColor: string; barColor: string }> = {
     urgent: { iconBg: 'bg-red-50', iconColor: 'text-red-600', barColor: 'bg-red-600' },
@@ -233,7 +319,9 @@ function KpiCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">{label}</p>
-          <p className="mt-3 font-mono text-3xl font-bold text-gray-900 tracking-tight">{value}</p>
+          <p className="mt-3 font-mono text-3xl font-bold text-gray-900 tracking-tight">
+            {loading ? <Loader2 className="size-6 animate-spin text-gray-300" /> : value}
+          </p>
         </div>
         <div
           className={cn(
@@ -245,29 +333,6 @@ function KpiCard({
           <Icon className="size-5" strokeWidth={2} />
         </div>
       </div>
-      <p className="mt-3 text-xs text-gray-500">{delta}</p>
     </div>
-  )
-}
-
-function Trend({ value }: { value: string }) {
-  if (value === '0') {
-    return (
-      <span className="inline-flex items-center gap-0.5 text-xs text-gray-400 font-mono w-12 justify-end">
-        <Minus className="size-3" /> 0
-      </span>
-    )
-  }
-  const isPlus = value.startsWith('+')
-  const Icon = isPlus ? TrendingUp : TrendingDown
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-0.5 text-xs font-mono w-12 justify-end',
-        isPlus ? 'text-red-600' : 'text-emerald-600',
-      )}
-    >
-      <Icon className="size-3" /> {value}
-    </span>
   )
 }

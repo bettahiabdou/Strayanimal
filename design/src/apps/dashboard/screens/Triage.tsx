@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check, X, Eye, MapPin, Clock, User } from 'lucide-react'
-import { MOCK_REPORTS, type Report, type ReportCategory } from '../data/mockReports'
+import { Eye, MapPin, Clock, User, Loader2, AlertCircle, RefreshCcw } from 'lucide-react'
+import { api, ApiError } from '@/lib/api'
+import { adaptReports, type Report, type ReportCategory } from '../data/adapter'
 import { cn } from '@/design-system/cn'
 
 const CATEGORY_TONE: Record<ReportCategory, string> = {
@@ -24,20 +25,36 @@ type Filter = 'all' | 'urgent' | 'today'
 export function Triage() {
   const { t } = useTranslation()
   const [filter, setFilter] = useState<Filter>('all')
-  const [removed, setRemoved] = useState<Set<string>>(new Set())
+  const [reports, setReports] = useState<Report[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
-  const all = useMemo(
-    () => MOCK_REPORTS.filter((r) => r.status === 'pending' && !removed.has(r.id)),
-    [removed],
-  )
+  async function load() {
+    setError(null)
+    setRefreshing(true)
+    try {
+      const r = await api.listReports({ status: 'PENDING', pageSize: 100 })
+      setReports(adaptReports(r.reports))
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Connexion impossible.')
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
   const visible = useMemo(() => {
-    if (filter === 'urgent') return all.filter((r) => r.isUrgent)
+    if (!reports) return []
+    if (filter === 'urgent') return reports.filter((r) => r.isUrgent)
     if (filter === 'today') {
       const today = new Date().toDateString()
-      return all.filter((r) => new Date(r.receivedAt).toDateString() === today)
+      return reports.filter((r) => new Date(r.receivedAt).toDateString() === today)
     }
-    return all
-  }, [all, filter])
+    return reports
+  }, [reports, filter])
 
   return (
     <div className="space-y-6 max-w-[1400px]">
@@ -51,7 +68,26 @@ export function Triage() {
             en file
           </p>
         </div>
+        <button
+          onClick={load}
+          disabled={refreshing}
+          className="btn-square btn-square-outline"
+          aria-label="Rafraîchir"
+        >
+          <RefreshCcw className={cn('size-4', refreshing && 'animate-spin')} />
+          Rafraîchir
+        </button>
       </div>
+
+      {error && (
+        <div
+          role="alert"
+          className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-800 rounded-md p-3 text-sm"
+        >
+          <AlertCircle className="size-4 mt-0.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white border border-gray-200 rounded-md inline-flex p-1">
@@ -69,20 +105,19 @@ export function Triage() {
         ))}
       </div>
 
-      {/* Grid of triage cards */}
-      {visible.length === 0 ? (
+      {/* Body */}
+      {!reports ? (
+        <div className="bg-white border border-gray-200 rounded-md p-16 grid place-items-center text-gray-400">
+          <Loader2 className="size-6 animate-spin" />
+        </div>
+      ) : visible.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-md p-16 text-center">
           <p className="text-gray-500">{t('dashboard.triage.empty')}</p>
         </div>
       ) : (
         <div className="grid lg:grid-cols-2 gap-4">
           {visible.map((r) => (
-            <TriageCard
-              key={r.id}
-              report={r}
-              onApprove={() => setRemoved((s) => new Set(s).add(r.id))}
-              onReject={() => setRemoved((s) => new Set(s).add(r.id))}
-            />
+            <TriageCard key={r.id} report={r} />
           ))}
         </div>
       )}
@@ -90,15 +125,7 @@ export function Triage() {
   )
 }
 
-function TriageCard({
-  report,
-  onApprove,
-  onReject,
-}: {
-  report: Report
-  onApprove: () => void
-  onReject: () => void
-}) {
+function TriageCard({ report }: { report: Report }) {
   const { t } = useTranslation()
   return (
     <article
@@ -156,15 +183,23 @@ function TriageCard({
             <button
               className="btn-square btn-square-outline h-8 px-2.5 text-xs"
               aria-label={t('dashboard.triage.card.viewDetail')}
+              disabled
+              title="Bientôt disponible"
             >
               <Eye className="size-3.5" />
             </button>
-            <button onClick={onReject} className="btn-square btn-square-outline h-8 px-3 text-xs">
-              <X className="size-3.5" />
+            <button
+              className="btn-square btn-square-outline h-8 px-3 text-xs"
+              disabled
+              title="Bientôt disponible"
+            >
               {t('dashboard.triage.card.reject')}
             </button>
-            <button onClick={onApprove} className="btn-square btn-square-red h-8 px-3 text-xs">
-              <Check className="size-3.5" />
+            <button
+              className="btn-square btn-square-red h-8 px-3 text-xs"
+              disabled
+              title="Bientôt disponible"
+            >
               {t('dashboard.triage.card.approve')}
             </button>
           </div>

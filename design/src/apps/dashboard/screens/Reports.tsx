@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Search,
@@ -7,12 +7,26 @@ import {
   ChevronRight,
   ArrowUpDown,
   Filter as FilterIcon,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react'
-import { MOCK_REPORTS, type Report, type ReportStatus } from '../data/mockReports'
+import { api, ApiError, type ReportStatus as ApiStatus } from '@/lib/api'
+import { adaptReports, type Report, type ReportStatus } from '../data/adapter'
 import { StatusBadge } from '../components/StatusBadge'
 import { CategoryBadge } from '../components/CategoryBadge'
 import { ReportDrawer } from '../components/ReportDrawer'
 import { cn } from '@/design-system/cn'
+
+/* Maps the dashboard's lowerCamel filter key → the API's UPPERCASE enum. */
+const FILTER_TO_API: Record<Exclude<ReportStatus, never>, ApiStatus> = {
+  pending: 'PENDING',
+  approved: 'APPROVED',
+  assigned: 'ASSIGNED',
+  inProgress: 'IN_PROGRESS',
+  resolved: 'RESOLVED',
+  rejected: 'REJECTED',
+  impossible: 'IMPOSSIBLE',
+}
 
 const STATUS_FILTERS: Array<ReportStatus | 'all'> = [
   'all',
@@ -23,6 +37,8 @@ const STATUS_FILTERS: Array<ReportStatus | 'all'> = [
   'resolved',
   'rejected',
 ]
+
+const PAGE_SIZE = 25
 
 function fmtShort(iso: string) {
   const d = new Date(iso)
@@ -38,25 +54,101 @@ export function Reports() {
   const { t } = useTranslation()
   const [filter, setFilter] = useState<ReportStatus | 'all'>('all')
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [data, setData] = useState<{ reports: Report[]; total: number } | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [counts, setCounts] = useState<Record<ReportStatus | 'all', number>>({
+    all: 0,
+    pending: 0,
+    approved: 0,
+    assigned: 0,
+    inProgress: 0,
+    resolved: 0,
+    rejected: 0,
+    impossible: 0,
+  })
 
-  const filtered = useMemo(() => {
-    let rows: Report[] = MOCK_REPORTS
-    if (filter !== 'all') rows = rows.filter((r) => r.status === filter)
-    if (search.trim()) {
-      const s = search.trim().toLowerCase()
-      rows = rows.filter(
-        (r) =>
-          r.id.toLowerCase().includes(s) ||
-          r.address.toLowerCase().includes(s) ||
-          r.zone.toLowerCase().includes(s) ||
-          (r.team ?? '').toLowerCase().includes(s),
-      )
+  // Debounce the search input by 300 ms.
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(id)
+  }, [search])
+
+  // Reset to page 1 when filter / search changes.
+  useEffect(() => {
+    setPage(1)
+  }, [filter, debouncedSearch])
+
+  // Fetch the visible page.
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    api
+      .listReports({
+        status: filter === 'all' ? undefined : FILTER_TO_API[filter],
+        search: debouncedSearch.trim() || undefined,
+        page,
+        pageSize: PAGE_SIZE,
+      })
+      .then((r) => {
+        if (cancelled) return
+        setData({ reports: adaptReports(r.reports), total: r.total })
+      })
+      .catch((e) => {
+        if (cancelled) return
+        setError(e instanceof ApiError ? e.message : 'Connexion impossible.')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
     }
-    return rows
-  }, [filter, search])
+  }, [filter, debouncedSearch, page])
 
-  const selected = filtered.find((r) => r.id === selectedId) ?? null
+  // Refresh per-status counts (cheap: separate light requests, only when the user is on the page).
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([
+      api.listReports({ pageSize: 1 }),
+      ...(['PENDING', 'APPROVED', 'ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'REJECTED'] as const).map(
+        (s) => api.listReports({ status: s, pageSize: 1 }),
+      ),
+    ])
+      .then(([all, p, a, asg, ip, r, rj]) => {
+        if (cancelled) return
+        setCounts({
+          all: all.total,
+          pending: p.total,
+          approved: a.total,
+          assigned: asg.total,
+          inProgress: ip.total,
+          resolved: r.total,
+          rejected: rj.total,
+          impossible: 0,
+        })
+      })
+      .catch(() => {
+        // counts are best-effort
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [page]) // refresh when the user paginates (cheap)
+
+  const reports = data?.reports ?? []
+  const total = data?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const selected = useMemo(
+    () => reports.find((r) => r.id === selectedId) ?? null,
+    [reports, selectedId],
+  )
+  const showingFrom = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
+  const showingTo = (page - 1) * PAGE_SIZE + reports.length
 
   return (
     <>
@@ -70,12 +162,22 @@ export function Reports() {
             <p className="mt-1.5 text-sm text-gray-600">{t('dashboard.reports.subtitle')}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button className="btn-square btn-square-outline">
+            <button className="btn-square btn-square-outline" disabled title="Bientôt disponible">
               <Download className="size-4" />
               {t('dashboard.reports.export')}
             </button>
           </div>
         </div>
+
+        {error && (
+          <div
+            role="alert"
+            className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-800 rounded-md p-3 text-sm"
+          >
+            <AlertCircle className="size-4 mt-0.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
 
         {/* Toolbar — filters + search */}
         <div className="bg-white border border-gray-200 rounded-md">
@@ -86,10 +188,7 @@ export function Reports() {
             </div>
             <div className="flex flex-wrap gap-1">
               {STATUS_FILTERS.map((s) => {
-                const count =
-                  s === 'all'
-                    ? MOCK_REPORTS.length
-                    : MOCK_REPORTS.filter((r) => r.status === s).length
+                const count = counts[s]
                 const label =
                   s === 'all' ? t('dashboard.reports.filterAll') : t(`dashboard.status.${s}`)
                 return (
@@ -128,7 +227,12 @@ export function Reports() {
           </div>
 
           {/* Table */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto relative">
+            {loading && (
+              <div className="absolute inset-0 grid place-items-center bg-white/60 z-10">
+                <Loader2 className="size-5 animate-spin text-gray-400" />
+              </div>
+            )}
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 text-[11px] uppercase tracking-wider text-gray-500 font-semibold">
@@ -143,14 +247,14 @@ export function Reports() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtered.length === 0 ? (
+                {!loading && reports.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="text-center py-16 text-gray-500">
                       {t('dashboard.reports.noResults')}
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((r) => (
+                  reports.map((r) => (
                     <tr
                       key={r.id}
                       onClick={() => setSelectedId(r.id)}
@@ -211,22 +315,26 @@ export function Reports() {
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 text-sm">
             <p className="text-xs text-gray-500">
               {t('dashboard.reports.showing', {
-                from: filtered.length === 0 ? 0 : 1,
-                to: filtered.length,
-                total: MOCK_REPORTS.length,
+                from: showingFrom,
+                to: showingTo,
+                total,
               })}
             </p>
             <div className="flex items-center gap-1">
               <button
-                disabled
+                disabled={page <= 1 || loading}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
                 className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-gray-500 rounded-md hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <ChevronLeft className="size-3.5 rtl:rotate-180" />
                 {t('dashboard.reports.previous')}
               </button>
-              <span className="font-mono text-xs px-2 text-gray-700">1 / 1</span>
+              <span className="font-mono text-xs px-2 text-gray-700">
+                {page} / {totalPages}
+              </span>
               <button
-                disabled
+                disabled={page >= totalPages || loading}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-gray-500 rounded-md hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {t('dashboard.reports.next')}

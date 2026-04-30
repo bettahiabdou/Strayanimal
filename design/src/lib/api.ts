@@ -205,6 +205,117 @@ export const api = {
     })
     return report
   },
+
+  /* ───────── Auth-protected report endpoints (used by the dashboard) ───────── */
+
+  async listReports(query: ListReportsQuery = {}): Promise<ListReportsResponse> {
+    const qs = new URLSearchParams()
+    if (query.status) qs.set('status', query.status)
+    if (typeof query.urgent === 'boolean') qs.set('urgent', String(query.urgent))
+    if (query.zone) qs.set('zone', query.zone)
+    if (query.search) qs.set('search', query.search)
+    if (query.page) qs.set('page', String(query.page))
+    if (query.pageSize) qs.set('pageSize', String(query.pageSize))
+    const path = qs.toString() ? `/reports?${qs}` : '/reports'
+    return request<ListReportsResponse>('GET', path)
+  },
+
+  async getReport(publicRef: string): Promise<{ report: ReportDetail }> {
+    return request<{ report: ReportDetail }>('GET', `/reports/${encodeURIComponent(publicRef)}`)
+  },
+
+  async reportStats(): Promise<{ stats: ReportStats }> {
+    return request<{ stats: ReportStats }>('GET', '/reports/stats')
+  },
+}
+
+/* ───────── Dashboard query/response types ───────── */
+
+export type ListReportsQuery = {
+  status?: ReportStatus | 'ALL'
+  urgent?: boolean
+  zone?: string
+  search?: string
+  page?: number
+  pageSize?: number
+}
+
+export type ApiReportRow = {
+  id: string
+  publicRef: string
+  category: ReportCategory
+  animalType: AnimalType
+  animalCount: number
+  status: ReportStatus
+  isUrgent: boolean
+  zone: string
+  address: string
+  comment: string
+  latitude: number
+  longitude: number
+  receivedAt: string
+  citizenName: string | null
+  citizenPhone: string | null
+  agent: { id: string; name: string } | null
+  team: { id: string; name: string } | null
+  missionStatus: string | null
+  thumbnailUrl: string | null
+}
+
+export type ListReportsResponse = {
+  reports: ApiReportRow[]
+  page: number
+  pageSize: number
+  total: number
+}
+
+export type ReportDetail = ApiReportRow & {
+  source: string
+  rejectReason: string | null
+  triagedAt: string | null
+  assignedAt: string | null
+  resolvedAt: string | null
+  preferredLocale: string
+  mission: {
+    id: string
+    status: string
+    agentNote: string | null
+    fieldNote: string | null
+    assignedAt: string
+    enRouteAt: string | null
+    onSiteAt: string | null
+    closedAt: string | null
+    outcome: string | null
+    durationMin: number | null
+    team: { id: string; name: string; zone: string } | null
+  } | null
+  media: Array<{ id: string; contentType: string; purpose: string; createdAt: string }>
+}
+
+export type ReportStats = {
+  pendingTriage: number
+  inProgress: number
+  resolvedToday: number
+  totalThisWeek: number
+  avgResponseMinutes: number | null
+  byCategory: Array<{ category: ReportCategory; count: number }>
+  hotZones: Array<{ zone: string; count: number }>
+  recentActivity: Array<{
+    id: string
+    at: string
+    action: string
+    target: string | null
+    category: string
+    who: string
+    role: string | null
+  }>
+}
+
+/* ───────── Helper: full URL for a /media/:id (used in <img src>) ───────── */
+export function mediaUrl(thumbnailPath: string | null | undefined): string | null {
+  if (!thumbnailPath) return null
+  if (thumbnailPath.startsWith('http')) return thumbnailPath
+  return `${API_URL}${thumbnailPath}`
 }
 
 export const apiUrl = API_URL
