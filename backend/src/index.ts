@@ -16,11 +16,22 @@ app.set('trust proxy', 1)
 app.use(
   cors({
     origin: (origin, cb) => {
-      if (!origin || corsOrigins.includes(origin) || corsOrigins.includes('*')) {
-        cb(null, true)
-      } else {
-        cb(new Error(`Origin ${origin} not allowed by CORS`))
+      // No origin (curl, server-to-server): allow.
+      if (!origin) return cb(null, true)
+
+      // Wildcard or exact match.
+      if (corsOrigins.includes('*') || corsOrigins.includes(origin)) {
+        return cb(null, true)
       }
+
+      // Mismatch: don't throw (would 500 the preflight). Return false so cors
+      // responds without ACAO headers — the browser will block, with a clear
+      // CORS error (not a 500), and we log enough context to fix it fast.
+      logger.warn(
+        { origin, allowed: corsOrigins },
+        'CORS origin rejected — check CORS_ORIGINS env var',
+      )
+      cb(null, false)
     },
     credentials: true,
   }),

@@ -29,4 +29,6 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data
-export const corsOrigins = env.CORS_ORIGINS.split(',').map((s) => s.trim())
+export const corsOrigins = env.CORS_ORIGINS.split(',')
+  .map((s) => s.trim().replace(/\/+$/, '')) // strip trailing slashes
+  .filter(Boolean)
