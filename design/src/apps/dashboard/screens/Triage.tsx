@@ -11,8 +11,9 @@ import {
   X,
   Check,
   Send,
+  Users as UsersIcon,
 } from 'lucide-react'
-import { api, ApiError } from '@/lib/api'
+import { api, ApiError, type ApiTeam } from '@/lib/api'
 import { adaptReports, type Report, type ReportCategory } from '../data/adapter'
 import { ReportDrawer } from '../components/ReportDrawer'
 import { cn } from '@/design-system/cn'
@@ -38,6 +39,7 @@ export function Triage() {
   const { t } = useTranslation()
   const [filter, setFilter] = useState<Filter>('all')
   const [reports, setReports] = useState<Report[] | null>(null)
+  const [teams, setTeams] = useState<ApiTeam[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [openRef, setOpenRef] = useState<string | null>(null)
@@ -55,8 +57,15 @@ export function Triage() {
     }
   }
 
+  // Load reports + teams once on mount. Teams are passed to every card so the
+  // inline "Valider et assigner" form can populate its dropdown without
+  // refetching N times.
   useEffect(() => {
     load()
+    api
+      .listTeams()
+      .then((r) => setTeams(r.teams))
+      .catch(() => setTeams([])) // teams are best-effort; cards fall back to approve-only
   }, [])
 
   /**
@@ -143,6 +152,7 @@ export function Triage() {
             <TriageCard
               key={r.id}
               report={r}
+              teams={teams}
               onDone={() => removeLocal(r.id)}
               onOpen={() => setOpenRef(r.id)}
             />
@@ -163,44 +173,46 @@ export function Triage() {
   )
 }
 
+/* ─────────────────────── Triage card ─────────────────────── */
+
+type FormMode = 'idle' | 'rejecting' | 'approving'
+
 type CardState =
   | { kind: 'idle' }
-  | { kind: 'rejecting' } // showing the reason form
-  | { kind: 'submitting' }
-  | { kind: 'error'; message: string }
+  | { kind: 'rejecting' }
+  | { kind: 'approving' }
+  | { kind: 'submitting'; previous: 'rejecting' | 'approving' }
+  | { kind: 'error'; message: string; previous: FormMode }
 
 function TriageCard({
   report,
+  teams,
   onDone,
   onOpen,
 }: {
   report: Report
+  /** `null` while teams are still loading. Empty array if the request failed. */
+  teams: ApiTeam[] | null
   onDone: () => void
   onOpen: () => void
 }) {
   const { t } = useTranslation()
   const [state, setState] = useState<CardState>({ kind: 'idle' })
   const [reason, setReason] = useState('')
+  const [teamId, setTeamId] = useState('')
+  const [agentNote, setAgentNote] = useState('')
 
-  async function handleApprove() {
-    setState({ kind: 'submitting' })
-    try {
-      await api.approveReport(report.id)
-      onDone()
-    } catch (e) {
-      setState({
-        kind: 'error',
-        message: e instanceof ApiError ? e.message : 'Échec de la validation.',
-      })
-    }
-  }
-
+  /* ─────────── Reject ─────────── */
   async function handleReject() {
     if (!reason.trim()) {
-      setState({ kind: 'error', message: 'Veuillez préciser le motif de rejet.' })
+      setState({
+        kind: 'error',
+        message: 'Veuillez préciser le motif de rejet.',
+        previous: 'rejecting',
+      })
       return
     }
-    setState({ kind: 'submitting' })
+    setState({ kind: 'submitting', previous: 'rejecting' })
     try {
       await api.rejectReport(report.id, reason.trim())
       onDone()
@@ -208,12 +220,65 @@ function TriageCard({
       setState({
         kind: 'error',
         message: e instanceof ApiError ? e.message : 'Échec du rejet.',
+        previous: 'rejecting',
+      })
+    }
+  }
+
+  /* ─────────── Approve only (no team picked yet) ─────────── */
+  async function handleApproveOnly() {
+    setState({ kind: 'submitting', previous: 'approving' })
+    try {
+      await api.approveReport(report.id)
+      onDone()
+    } catch (e) {
+      setState({
+        kind: 'error',
+        message: e instanceof ApiError ? e.message : 'Échec de la validation.',
+        previous: 'approving',
+      })
+    }
+  }
+
+  /* ─────────── Approve + Assign (chained) ───────────
+   *
+   * If approve succeeds but assign fails, the report is left in APPROVED
+   * state — the agent gets the error and can finish from the drawer
+   * (status filter "Approuvés" → row → Assign).
+   */
+  async function handleApproveAndAssign() {
+    if (!teamId) {
+      setState({
+        kind: 'error',
+        message: 'Veuillez choisir une équipe (ou utilisez « Valider sans assigner »).',
+        previous: 'approving',
+      })
+      return
+    }
+    setState({ kind: 'submitting', previous: 'approving' })
+    try {
+      await api.approveReport(report.id)
+      await api.assignReport(report.id, teamId, agentNote.trim() || undefined)
+      onDone()
+    } catch (e) {
+      setState({
+        kind: 'error',
+        message:
+          e instanceof ApiError ? `${e.message} ${e.status === 409 ? '' : ''}`.trim() : 'Échec.',
+        previous: 'approving',
       })
     }
   }
 
   const submitting = state.kind === 'submitting'
-  const showRejectForm = state.kind === 'rejecting' || (state.kind === 'error' && reason)
+  const formMode: FormMode =
+    state.kind === 'rejecting' || state.kind === 'approving'
+      ? state.kind
+      : state.kind === 'submitting'
+        ? state.previous
+        : state.kind === 'error'
+          ? state.previous
+          : 'idle'
   const errorMsg = state.kind === 'error' ? state.message : null
 
   return (
@@ -264,7 +329,7 @@ function TriageCard({
         <p className="mt-3 text-[13px] text-gray-700 line-clamp-2 leading-snug">{report.comment}</p>
 
         {/* Inline reject reason form */}
-        {showRejectForm && (
+        {formMode === 'rejecting' && (
           <div className="mt-3 p-3 bg-red-50/60 border border-red-200 rounded-md">
             <label className="block">
               <span className="block text-[11px] uppercase tracking-wider text-red-800 font-semibold mb-1.5">
@@ -280,6 +345,14 @@ function TriageCard({
                 autoFocus
               />
             </label>
+            {errorMsg && (
+              <p
+                role="alert"
+                className="mt-2 text-[11px] text-red-700 inline-flex items-center gap-1"
+              >
+                <AlertCircle className="size-3" /> {errorMsg}
+              </p>
+            )}
             <div className="mt-2 flex items-center justify-end gap-2">
               <button
                 type="button"
@@ -309,13 +382,104 @@ function TriageCard({
           </div>
         )}
 
-        {errorMsg && !showRejectForm && (
-          <p role="alert" className="mt-2 text-[11px] text-red-700 inline-flex items-center gap-1">
-            <AlertCircle className="size-3" /> {errorMsg}
-          </p>
+        {/* Inline approve + assign form */}
+        {formMode === 'approving' && (
+          <div className="mt-3 p-3 bg-olive-50/60 border border-olive-200 rounded-md">
+            <label className="block">
+              <span className="block text-[11px] uppercase tracking-wider text-olive-800 font-semibold mb-1.5">
+                Assigner à une équipe
+              </span>
+              {teams === null ? (
+                <span className="inline-flex items-center gap-2 text-xs text-gray-500">
+                  <Loader2 className="size-3 animate-spin" /> Chargement des équipes…
+                </span>
+              ) : teams.length === 0 ? (
+                <span className="text-xs text-gray-600">
+                  Aucune équipe active disponible. Vous pouvez quand même valider sans assigner.
+                </span>
+              ) : (
+                <select
+                  className="textarea text-sm h-9"
+                  value={teamId}
+                  onChange={(e) => setTeamId(e.target.value)}
+                  disabled={submitting}
+                  autoFocus
+                >
+                  <option value="">— Choisir une équipe —</option>
+                  {teams.map((tm) => (
+                    <option key={tm.id} value={tm.id}>
+                      {tm.name} · {tm.zone} ({tm.memberCount} membres)
+                    </option>
+                  ))}
+                </select>
+              )}
+            </label>
+
+            <label className="block mt-3">
+              <span className="block text-[11px] uppercase tracking-wider text-gray-600 font-semibold mb-1.5">
+                Note pour l'équipe (optionnel)
+              </span>
+              <textarea
+                className="textarea text-sm"
+                rows={2}
+                placeholder="Précisions sur l'animal, accès, créneau…"
+                value={agentNote}
+                onChange={(e) => setAgentNote(e.target.value)}
+                disabled={submitting}
+              />
+            </label>
+
+            {errorMsg && (
+              <p
+                role="alert"
+                className="mt-2 text-[11px] text-red-700 inline-flex items-center gap-1"
+              >
+                <AlertCircle className="size-3" /> {errorMsg}
+              </p>
+            )}
+
+            <div className="mt-2 flex items-center justify-between gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={handleApproveOnly}
+                disabled={submitting}
+                className="text-xs font-semibold text-olive-800 hover:text-olive-900 underline-offset-2 hover:underline disabled:opacity-50"
+              >
+                Valider sans assigner
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setState({ kind: 'idle' })
+                    setTeamId('')
+                    setAgentNote('')
+                  }}
+                  disabled={submitting}
+                  className="btn-square btn-square-outline h-8 px-3 text-xs"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApproveAndAssign}
+                  disabled={submitting || !teams || teams.length === 0}
+                  className="btn-square btn-square-red h-8 px-3 text-xs"
+                >
+                  {submitting ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Check className="size-3.5" />
+                  )}
+                  Valider et assigner
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
-        {!showRejectForm && (
+        {/* Default action row */}
+        {formMode === 'idle' && (
           <div className="mt-auto pt-3 flex items-center justify-between gap-2">
             <span className="text-[11px] text-gray-500 inline-flex items-center gap-1 truncate">
               <User className="size-3" />
@@ -338,16 +502,12 @@ function TriageCard({
                 {t('dashboard.triage.card.reject')}
               </button>
               <button
-                onClick={handleApprove}
+                onClick={() => setState({ kind: 'approving' })}
                 disabled={submitting}
                 className="btn-square btn-square-red h-8 px-3 text-xs"
               >
-                {submitting ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Check className="size-3.5" />
-                )}
-                {t('dashboard.triage.card.approve')}
+                <UsersIcon className="size-3.5" />
+                Valider et assigner
               </button>
             </div>
           </div>
