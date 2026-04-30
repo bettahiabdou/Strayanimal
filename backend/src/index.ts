@@ -1,16 +1,21 @@
-import express, { type Request, type Response, type NextFunction } from 'express'
+import express, { type Request, type Response } from 'express'
 import cors from 'cors'
+import cookieParser from 'cookie-parser'
 import { pinoHttp } from 'pino-http'
 import { env, corsOrigins } from './lib/env.js'
 import { logger } from './lib/logger.js'
 import { prisma } from './lib/db.js'
+import { authRouter } from './routes/auth.js'
+import { errorHandler } from './middleware/error.js'
 
 const app = express()
+
+// Trust proxy headers (Render is behind a proxy → req.ip needs this)
+app.set('trust proxy', 1)
 
 app.use(
   cors({
     origin: (origin, cb) => {
-      // Allow same-origin / curl (no Origin header) and listed origins
       if (!origin || corsOrigins.includes(origin) || corsOrigins.includes('*')) {
         cb(null, true)
       } else {
@@ -22,9 +27,10 @@ app.use(
 )
 
 app.use(express.json({ limit: '1mb' }))
+app.use(cookieParser())
 app.use(pinoHttp({ logger }))
 
-// ───── Health check (used by Render and uptime monitors)
+/* ───────── Health (used by Render and uptime monitors) */
 app.get('/health', async (_req: Request, res: Response) => {
   try {
     await prisma.$queryRaw`SELECT 1`
@@ -35,27 +41,25 @@ app.get('/health', async (_req: Request, res: Response) => {
   }
 })
 
-// ───── 404
+/* ───────── API routes */
+app.use('/auth', authRouter)
+
+/* ───────── 404 */
 app.use((_req: Request, res: Response) => {
   res.status(404).json({
     error: { code: 'NOT_FOUND', message: 'Route not found' },
   })
 })
 
-// ───── Centralised error handler
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  logger.error({ err }, 'unhandled error')
-  res.status(500).json({
-    error: { code: 'INTERNAL_ERROR', message: 'Une erreur est survenue.' },
-  })
-})
+/* ───────── Centralised error handler (must be last) */
+app.use(errorHandler)
 
 const server = app.listen(env.PORT, () => {
   logger.info(`✅ API listening on http://localhost:${env.PORT} (${env.NODE_ENV})`)
   logger.info(`   CORS origins: ${corsOrigins.join(', ')}`)
 })
 
-// ───── Graceful shutdown
+/* ───────── Graceful shutdown */
 const shutdown = async (signal: string) => {
   logger.info(`${signal} received, shutting down…`)
   server.close()
